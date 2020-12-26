@@ -2,7 +2,7 @@
 # RuntimeFilesDownloader
 This plugin will be useful for those who want to be able to download any files via HTTP protocol on runtime and save in device storage. It's easy to use in both C++ and Blueprints.
 
-![Runtime Files Downloader Unreal Engine Plugin Logo](image/runtimeaudioimporter.png "RuntimeFilesDownloader Unreal Engine Plugin Logo")
+![Runtime Files Downloader Unreal Engine Plugin Logo](image/runtimefilesdownloader.png "RuntimeFilesDownloader Unreal Engine Plugin Logo")
 
 ## Features
 - Low library size (≈ 30 kb)
@@ -21,7 +21,7 @@ There're two ways to install the plugin:
 ## How to use
  There are two ways to use this plugin: using Blueprints and C++:
  1. Blueprints. Just reopen your Unreal project and use "Create Downloader" and "Download File" nodes.
- 2. C++. Open your "[ProjectName].Build.cs" and find a block of ` PublicDependencyModuleNames ` or ` PrivateDependencyModuleNames ` (it depends on your needs). Add `"RuntimeFilesDownloader"` String inside this block. After just include "RuntimeAudioImporterBPLibrary.h" using ` #include "RuntimeFilesDownloaderBPLibrary.h" ` where needed.
+ 2. C++. Open your "[ProjectName].Build.cs" and find a block of ` PublicDependencyModuleNames ` or ` PrivateDependencyModuleNames ` (it depends on your needs). Add `"RuntimeFilesDownloader"` String inside this block. After just include "RuntimeFilesDownloaderBPLibrary.h" using ` #include "RuntimeFilesDownloaderBPLibrary.h" ` where needed.
 
 ## Legal info
 
