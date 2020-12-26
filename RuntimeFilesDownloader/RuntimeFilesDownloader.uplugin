@@ -14,6 +14,7 @@
 	"IsBetaVersion": false,
 	"IsExperimentalVersion": false,
 	"Installed": true,
+	"EngineVersion": "4.26.0",
 	"Modules": [
     {
       "Name": "RuntimeFilesDownloader",
