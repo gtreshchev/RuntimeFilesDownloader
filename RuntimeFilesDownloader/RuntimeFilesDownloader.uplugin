@@ -1,0 +1,39 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "RuntimeFilesDownloader",
+	"Description": "Runtime Files Downloader for Unreal Engine. Allows you to download any files via HTTP protocol on runtime and save in device storage",
+	"Category": "Code Plugins",
+	"CreatedBy": "Respirant",
+	"CreatedByURL": "https://github.com/Respirant/RuntimeFilesDownloader",
+	"DocsURL": "https://github.com/Respirant/RuntimeFilesDownloader",
+	"MarketplaceURL": "",
+	"SupportURL": "https://telegram.me/Respirant",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": false,
+	"Installed": true,
+	"Modules": [
+    {
+      "Name": "RuntimeFilesDownloader",
+      "Type": "Runtime",
+      "LoadingPhase": "Default",
+      "WhitelistPlatforms": [
+        "Win64",
+        "Win32",
+        "Mac",
+        "Android",
+        "IOS",
+        "Linux"
+      ],
+      "BlacklistPlatforms": [
+        "XboxOne",
+        "PS4",
+        "HTML5",
+        "TVOS",
+        "Switch"
+      ]
+    }
+  ]
+}
