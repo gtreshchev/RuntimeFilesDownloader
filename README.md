@@ -1,6 +1,6 @@
 ![GitHub](https://img.shields.io/github/license/Respirant/RuntimeFilesDownloader)
 # RuntimeFilesDownloader
-This plugin will be useful for those who want to be able to download any files via HTTP protocol on runtime and save in device storage. It's easy to use in both C++ and Blueprints.
+Runtime Files Downloader plugin for Unreal Engine. Allows you to download any files via the HTTP protocol to the device memory. It's easy to use in both C++ and Blueprints.
 
 ![Runtime Files Downloader Unreal Engine Plugin Logo](image/runtimefilesdownloader.png "RuntimeFilesDownloader Unreal Engine Plugin Logo")
 
