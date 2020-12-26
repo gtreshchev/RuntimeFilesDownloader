@@ -6,7 +6,6 @@ Runtime Files Downloader plugin for Unreal Engine. Allows you to download any fi
 
 ## Features
 - Low library size (≈ 30 kb)
-- Fast downloading speed (780 kb file - 28 sec to download - 4.7 Mbps network speed)
 - No any third party libraries and external dependencies
 - Support for all available devices (tested on Windows and Android, but there are no restrictions to work on other devices)
 
