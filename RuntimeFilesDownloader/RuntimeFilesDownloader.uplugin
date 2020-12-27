@@ -33,7 +33,8 @@
         "PS4",
         "HTML5",
         "TVOS",
-        "Switch"
+        "Switch",
+        "Unknown"
       ]
     }
   ]
