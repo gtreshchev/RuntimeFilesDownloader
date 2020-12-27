@@ -6,6 +6,8 @@
 #include "Misc/Paths.h"
 #include "HAL/PlatformFilemanager.h"
 
+#include "GenericPlatform/GenericPlatformFile.h"
+
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "RuntimeFilesDownloaderBPLibrary.generated.h"
 
@@ -33,7 +35,7 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "RuntimeFilesDownloader")
 		FOnResult OnResult;
 	/**
-	* Bind to know when the download is complete (even if it fails).
+	* Bind to know when the download is on progress.
 	*/
 	UPROPERTY(BlueprintAssignable, Category = "RuntimeFilesDownloader")
 		FOnProgress OnProgress;
@@ -43,6 +45,7 @@ public:
 	*/
 	UPROPERTY(BlueprintReadOnly, Category = "RuntimeFilesDownloader")
 		FString FileUrl;
+
 	/**
 	* The path set to save the downloaded file.
 	*/
