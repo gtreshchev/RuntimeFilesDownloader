@@ -10,7 +10,7 @@ Runtime Files Downloader plugin for Unreal Engine. Allows you to download any fi
 - Support for all available devices (tested on Windows and Android, but there are no restrictions to work on other devices)
 
 ## Documentation
-Click on the following link to view the documentation - https://unreal.blog/runtime-files-downloader-documentation
+Click on the following link to view the documentation - https://unreal.blog/runtime-files-downloader
 
 ## Legal info
 
