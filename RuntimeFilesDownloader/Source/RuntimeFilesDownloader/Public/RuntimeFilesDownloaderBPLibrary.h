@@ -61,19 +61,18 @@ public:
 	*
 	* @return The FileDownloader object. Bind to it's OnResult event to know when it's done downloading.
 	*/
-	UFUNCTION(BlueprintCallable, Meta = (DisplayName = "Create Downloader"), Category = "RuntimeFilesDownloader")
-		static URuntimeFilesDownloaderBPLibrary* MakeDownloader();
+	UFUNCTION(BlueprintCallable, Category = "RuntimeFilesDownloader")
+		static URuntimeFilesDownloaderBPLibrary* CreateDownloader();
 
 	/**
-	* Starts downloading a file and saves it when done. Bind to the OnResult
-	* event to know when the download is done (preferrably, before calling this function).
+	* Starts downloading a file and saves it when done.
 	*
 	* @param Url		The file Url to be downloaded.
 	* @param SavePath	The absolute path and file name to save the downloaded file.
 	* @return Returns itself.
 	*/
-	UFUNCTION(BlueprintCallable, Meta = (DisplayName = "Download File"), Category = "RuntimeFilesDownloader")
-		URuntimeFilesDownloaderBPLibrary* DownloadFile(const FString & Url, FString SavePath);
+	UFUNCTION(BlueprintCallable, Category = "RuntimeFilesDownloader")
+		URuntimeFilesDownloaderBPLibrary* DownloadFile(const FString & URL, FString SavePath);
 
 private:
 

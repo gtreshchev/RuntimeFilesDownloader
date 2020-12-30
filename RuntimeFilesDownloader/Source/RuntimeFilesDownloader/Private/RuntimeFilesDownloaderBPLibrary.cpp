@@ -4,11 +4,10 @@
 #include "RuntimeFilesDownloader.h"
 
 URuntimeFilesDownloaderBPLibrary::URuntimeFilesDownloaderBPLibrary(const FObjectInitializer& ObjectInitializer)
-: Super(ObjectInitializer)
+	: Super(ObjectInitializer)
 {
 
 }
-
 
 URuntimeFilesDownloaderBPLibrary::URuntimeFilesDownloaderBPLibrary() :
 	FileUrl(TEXT(""))
@@ -20,23 +19,22 @@ URuntimeFilesDownloaderBPLibrary::~URuntimeFilesDownloaderBPLibrary()
 {
 }
 
-URuntimeFilesDownloaderBPLibrary* URuntimeFilesDownloaderBPLibrary::MakeDownloader()
+URuntimeFilesDownloaderBPLibrary* URuntimeFilesDownloaderBPLibrary::CreateDownloader()
 {
 	URuntimeFilesDownloaderBPLibrary* Downloader = NewObject<URuntimeFilesDownloaderBPLibrary>();
 	return Downloader;
 }
 
-
-URuntimeFilesDownloaderBPLibrary* URuntimeFilesDownloaderBPLibrary::DownloadFile(const FString& Url, FString SavePath)
+URuntimeFilesDownloaderBPLibrary* URuntimeFilesDownloaderBPLibrary::DownloadFile(const FString& URL, FString SavePath)
 {
 	URuntimeFilesDownloaderBPLibrary* Downloader = NewObject<URuntimeFilesDownloaderBPLibrary>();
-	FileUrl = Url;
+	FileUrl = URL;
 	FileSavePath = SavePath;
 
 	TSharedRef< IHttpRequest, ESPMode::ThreadSafe > HttpRequest = FHttpModule::Get().CreateRequest();
-	
+
 	HttpRequest->SetVerb("GET");
-	HttpRequest->SetURL(Url);
+	HttpRequest->SetURL(URL);
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &URuntimeFilesDownloaderBPLibrary::OnReady);
 	HttpRequest->OnRequestProgress().BindUObject(this, &URuntimeFilesDownloaderBPLibrary::OnProgress_Internal);
 
@@ -45,8 +43,6 @@ URuntimeFilesDownloaderBPLibrary* URuntimeFilesDownloaderBPLibrary::DownloadFile
 	AddToRoot();
 
 	return this;
-
-
 }
 
 void URuntimeFilesDownloaderBPLibrary::OnReady(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
