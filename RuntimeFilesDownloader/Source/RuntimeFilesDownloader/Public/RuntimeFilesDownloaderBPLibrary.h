@@ -72,7 +72,7 @@ public:
 	* @return Returns itself.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "RuntimeFilesDownloader")
-		URuntimeFilesDownloaderBPLibrary* DownloadFile_Internal(const FString & URL, FString SavePath);
+		URuntimeFilesDownloaderBPLibrary* DownloadFile(const FString & URL, FString SavePath);
 
 private:
 
