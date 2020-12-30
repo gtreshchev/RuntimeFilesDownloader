@@ -34,7 +34,7 @@ URuntimeFilesDownloaderBPLibrary* URuntimeFilesDownloaderBPLibrary::DownloadFile
 
 	HttpRequest->SetVerb("GET");
 	HttpRequest->SetURL(URL);
-	HttpRequest->OnProcessRequestComplete().BindUObject(this, &URuntimeFilesDownloaderBPLibrary::OnReady);
+	HttpRequest->OnProcessRequestComplete().BindUObject(this, &URuntimeFilesDownloaderBPLibrary::OnReady_Internal);
 	HttpRequest->OnRequestProgress().BindUObject(this, &URuntimeFilesDownloaderBPLibrary::OnProgress_Internal);
 
 	// Execute the request
