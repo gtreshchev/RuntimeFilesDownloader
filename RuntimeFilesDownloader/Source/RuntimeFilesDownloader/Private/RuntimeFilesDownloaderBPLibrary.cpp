@@ -27,7 +27,6 @@ URuntimeFilesDownloaderBPLibrary* URuntimeFilesDownloaderBPLibrary::CreateDownlo
 
 URuntimeFilesDownloaderBPLibrary* URuntimeFilesDownloaderBPLibrary::DownloadFile(const FString& URL, FString SavePath)
 {
-	URuntimeFilesDownloaderBPLibrary* Downloader = NewObject<URuntimeFilesDownloaderBPLibrary>();
 	FileUrl = URL;
 	FileSavePath = SavePath;
 
@@ -45,7 +44,7 @@ URuntimeFilesDownloaderBPLibrary* URuntimeFilesDownloaderBPLibrary::DownloadFile
 	return this;
 }
 
-void URuntimeFilesDownloaderBPLibrary::OnReady(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
+void URuntimeFilesDownloaderBPLibrary::OnReady_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
 {
 	RemoveFromRoot();
 	Request->OnProcessRequestComplete().Unbind();

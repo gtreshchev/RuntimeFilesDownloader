@@ -72,11 +72,11 @@ public:
 	* @return Returns itself.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "RuntimeFilesDownloader")
-		URuntimeFilesDownloaderBPLibrary* DownloadFile(const FString & URL, FString SavePath);
+		URuntimeFilesDownloaderBPLibrary* DownloadFile_Internal(const FString & URL, FString SavePath);
 
 private:
 
-	void OnReady(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
+	void OnReady_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
 	void OnProgress_Internal(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived);
 };
 
