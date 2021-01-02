@@ -16,4 +16,4 @@ Click on the following link to view the documentation - https://unreal.blog/runt
 
 Unreal® is a trademark or registered trademark of Epic Games, Inc. in the United States of America and elsewhere.
 
-Unreal® Engine, Copyright 1998 – 2020, Epic Games, Inc. All rights reserved.
+Unreal® Engine, Copyright 1998 – 2021, Epic Games, Inc. All rights reserved.
