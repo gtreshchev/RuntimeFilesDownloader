@@ -30,10 +30,11 @@ URuntimeFilesDownloaderLibrary* URuntimeFilesDownloaderLibrary::DownloadFile(con
 	FileUrl = URL;
 	FileSavePath = SavePath;
 
-	TSharedRef< IHttpRequest, ESPMode::ThreadSafe > HttpRequest = FHttpModule::Get().CreateRequest();
+	TSharedRef< IHttpRequest > HttpRequest = FHttpModule::Get().CreateRequest();
 
 	HttpRequest->SetVerb("GET");
 	HttpRequest->SetURL(URL);
+	HttpRequest->SetHeader("Content-Type", TEXT("application/octet-stream"));
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &URuntimeFilesDownloaderLibrary::OnReady_Internal);
 	HttpRequest->OnRequestProgress().BindUObject(this, &URuntimeFilesDownloaderLibrary::OnProgress_Internal);
 
@@ -46,8 +47,12 @@ URuntimeFilesDownloaderLibrary* URuntimeFilesDownloaderLibrary::DownloadFile(con
 
 void URuntimeFilesDownloaderLibrary::OnProgress_Internal(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived)
 {
-	int32 FullSize = Request->GetContentLength();
-	OnProgress.Broadcast(BytesSent, BytesReceived, FullSize);
+	FHttpResponsePtr Response = Request->GetResponse();
+	if (Response.IsValid())
+	{
+		int32 FullSize = Response->GetContentLength();
+		OnProgress.Broadcast(BytesSent, BytesReceived, FullSize);
+	}
 }
 
 void URuntimeFilesDownloaderLibrary::OnReady_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
