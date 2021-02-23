@@ -30,11 +30,10 @@ URuntimeFilesDownloaderLibrary* URuntimeFilesDownloaderLibrary::DownloadFile(con
 	FileUrl = URL;
 	FileSavePath = SavePath;
 
-	TSharedRef< IHttpRequest > HttpRequest = FHttpModule::Get().CreateRequest();
+	TSharedRef< IHttpRequest, ESPMode::ThreadSafe > HttpRequest = FHttpModule::Get().CreateRequest();
 
 	HttpRequest->SetVerb("GET");
 	HttpRequest->SetURL(URL);
-	HttpRequest->SetHeader("Content-Type", TEXT("application/octet-stream"));
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &URuntimeFilesDownloaderLibrary::OnReady_Internal);
 	HttpRequest->OnRequestProgress().BindUObject(this, &URuntimeFilesDownloaderLibrary::OnProgress_Internal);
 
