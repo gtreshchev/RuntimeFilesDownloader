@@ -33,7 +33,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnResult, TEnumAsByte < DownloadRes
 UCLASS(BlueprintType, Category = "RuntimeFilesDownloader")
 class RUNTIMEFILESDOWNLOADER_API URuntimeFilesDownloaderLibrary : public UObject
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
 public:
 	/**
@@ -59,12 +59,6 @@ public:
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "RuntimeFilesDownloader")
 		FString FileSavePath;
-
-	/**
-	 * Basic class methods
-	 */
-	URuntimeFilesDownloaderLibrary();
-	~URuntimeFilesDownloaderLibrary();
 
 	/**
 	 * Instantiates a FileDownloader object, starts downloading and saves it when done.

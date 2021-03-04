@@ -3,22 +3,6 @@
 #include "RuntimeFilesDownloaderLibrary.h"
 #include "RuntimeFilesDownloader.h"
 
-URuntimeFilesDownloaderLibrary::URuntimeFilesDownloaderLibrary(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-
-}
-
-URuntimeFilesDownloaderLibrary::URuntimeFilesDownloaderLibrary() :
-	FileUrl(TEXT(""))
-	, FileSavePath(TEXT(""))
-{
-}
-
-URuntimeFilesDownloaderLibrary::~URuntimeFilesDownloaderLibrary()
-{
-}
-
 URuntimeFilesDownloaderLibrary* URuntimeFilesDownloaderLibrary::CreateDownloader()
 {
 	URuntimeFilesDownloaderLibrary* Downloader = NewObject<URuntimeFilesDownloaderLibrary>();
