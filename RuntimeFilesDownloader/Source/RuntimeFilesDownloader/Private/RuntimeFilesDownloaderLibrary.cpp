@@ -6,7 +6,7 @@
 URuntimeFilesDownloaderLibrary* URuntimeFilesDownloaderLibrary::CreateDownloader()
 {
 	URuntimeFilesDownloaderLibrary* Downloader = NewObject<URuntimeFilesDownloaderLibrary>();
-	AddToRoot();
+	Downloader->AddToRoot();
 	return Downloader;
 }
 
