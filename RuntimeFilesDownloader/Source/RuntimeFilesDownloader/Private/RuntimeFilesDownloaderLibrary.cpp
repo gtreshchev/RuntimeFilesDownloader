@@ -1,4 +1,4 @@
-// Respirant 2020.
+// Georgy Treshchev 2021.
 
 #include "RuntimeFilesDownloaderLibrary.h"
 #include "RuntimeFilesDownloader.h"
