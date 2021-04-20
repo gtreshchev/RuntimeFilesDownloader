@@ -1,7 +1,10 @@
 // Georgy Treshchev 2021.
 
 #include "RuntimeFilesDownloaderLibrary.h"
-#include "RuntimeFilesDownloader.h"
+
+#include "Misc/Paths.h"
+#include "HAL/PlatformFilemanager.h"
+#include "GenericPlatform/GenericPlatformFile.h"
 
 URuntimeFilesDownloaderLibrary* URuntimeFilesDownloaderLibrary::CreateDownloader()
 {
@@ -10,41 +13,47 @@ URuntimeFilesDownloaderLibrary* URuntimeFilesDownloaderLibrary::CreateDownloader
 	return Downloader;
 }
 
-URuntimeFilesDownloaderLibrary* URuntimeFilesDownloaderLibrary::DownloadFile(const FString& URL, FString SavePath)
+bool URuntimeFilesDownloaderLibrary::DownloadFile(const FString& URL, const FString& SavePath, float TimeOut)
 {
-	FileUrl = URL;
+	if (URL.IsEmpty() || SavePath.IsEmpty() || TimeOut <= 0)
+	{
+		return false;
+	}
+
+	FileURL = URL;
 	FileSavePath = SavePath;
 
-	TSharedRef< IHttpRequest, ESPMode::ThreadSafe > HttpRequest = FHttpModule::Get().CreateRequest();
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 
 	HttpRequest->SetVerb("GET");
-	HttpRequest->SetURL(URL);
+	HttpRequest->SetURL(FileURL);
+	HttpRequest->SetTimeout(TimeOut);
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &URuntimeFilesDownloaderLibrary::OnReady_Internal);
 	HttpRequest->OnRequestProgress().BindUObject(this, &URuntimeFilesDownloaderLibrary::OnProgress_Internal);
 
-	// Execute the request
+	// Process the request
 	HttpRequest->ProcessRequest();
-	AddToRoot();
 
-	return this;
+	return true;
 }
 
 void URuntimeFilesDownloaderLibrary::OnProgress_Internal(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived)
 {
-	FHttpResponsePtr Response = Request->GetResponse();
+	const FHttpResponsePtr Response = Request->GetResponse();
 	if (Response.IsValid())
 	{
-		int32 FullSize = Response->GetContentLength();
+		const int32 FullSize = Response->GetContentLength();
 		OnProgress.Broadcast(BytesSent, BytesReceived, FullSize);
 	}
 }
 
-void URuntimeFilesDownloaderLibrary::OnReady_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
+void URuntimeFilesDownloaderLibrary::OnReady_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response,
+                                                      bool bWasSuccessful)
 {
 	RemoveFromRoot();
 	Request->OnProcessRequestComplete().Unbind();
 
-	if (Response.IsValid() && EHttpResponseCodes::IsOk(Response->GetResponseCode()))
+	if (Response.IsValid() && EHttpResponseCodes::IsOk(Response->GetResponseCode()) && bWasSuccessful)
 	{
 		// Save file
 		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
@@ -56,12 +65,12 @@ void URuntimeFilesDownloaderLibrary::OnReady_Internal(FHttpRequestPtr Request, F
 		{
 			if (!PlatformFile.CreateDirectoryTree(*Path))
 			{
-				OnResult.Broadcast(DownloadResult::DirectoryCreationFailed);
+				OnResult.Broadcast(DirectoryCreationFailed);
 				return;
 			}
 		}
 
-		// Open/Create the file
+		// Open / Create the file
 		IFileHandle* FileHandle = PlatformFile.OpenWrite(*FileSavePath);
 		if (FileHandle)
 		{
@@ -70,15 +79,15 @@ void URuntimeFilesDownloaderLibrary::OnReady_Internal(FHttpRequestPtr Request, F
 			// Close the file
 			delete FileHandle;
 
-			OnResult.Broadcast(DownloadResult::SuccessDownloading);
+			OnResult.Broadcast(SuccessDownloading);
 		}
 		else
 		{
-			OnResult.Broadcast(DownloadResult::SaveFailed);
+			OnResult.Broadcast(SaveFailed);
 		}
 	}
 	else
 	{
-		OnResult.Broadcast(DownloadResult::DownloadFailed);
+		OnResult.Broadcast(DownloadFailed);
 	}
 }

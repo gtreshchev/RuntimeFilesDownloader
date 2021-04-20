@@ -3,9 +3,7 @@
 #pragma once
 
 #include "Http.h"
-#include "Misc/Paths.h"
-#include "HAL/PlatformFilemanager.h"
-#include "GenericPlatform/GenericPlatformFile.h"
+
 #include "RuntimeFilesDownloaderLibrary.generated.h"
 
 /**
@@ -14,23 +12,27 @@
 UENUM(BlueprintType, Category = "RuntimeFilesDownloader")
 enum DownloadResult
 {
-	SuccessDownloading			UMETA(DisplayName = "Success"),
-	DownloadFailed				UMETA(DisplayName = "Download failed"),
-	SaveFailed					UMETA(DisplayName = "Save failed"),
-	DirectoryCreationFailed		UMETA(DisplayName = "Directory creation failed")
+	SuccessDownloading UMETA(DisplayName = "Success"),
+	DownloadFailed UMETA(DisplayName = "Download failed"),
+	SaveFailed UMETA(DisplayName = "Save failed"),
+	DirectoryCreationFailed UMETA(DisplayName = "Directory creation failed")
 };
 
 /**
- * Declare delegate which will be called during the download process
+ * Declare delegate which will be called during the download process. Divide "Bytes Received" by "Content Length" to get the download percentage
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnProgress, const int32, BytesSent, const int32, BytesReceived, const int32, ContentLength);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnProgress, const int32, BytesSent, const int32, BytesReceived,
+                                               const int32, ContentLength);
 
 /**
  * Declare a delegate that will be called on the download result
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnResult, TEnumAsByte < DownloadResult >, Result);
 
-UCLASS(BlueprintType, Category = "RuntimeFilesDownloader")
+/**
+ * Library for downloading files by direct link to the specified folder
+ */
+UCLASS(BlueprintType, Category = "Runtime Files Downloader")
 class RUNTIMEFILESDOWNLOADER_API URuntimeFilesDownloaderLibrary : public UObject
 {
 	GENERATED_BODY()
@@ -39,53 +41,54 @@ public:
 	/**
 	 * Bind to know when the download is on progress.
 	 */
-	UPROPERTY(BlueprintAssignable, Category = "RuntimeFilesDownloader")
-		FOnProgress OnProgress;
+	UPROPERTY(BlueprintAssignable, Category = "Runtime Files Downloader")
+	FOnProgress OnProgress;
 
 	/**
-	 * Bind to know when the download is complete (even if it fails).
+	 * Bind to know when the download is complete (even if it fails)
 	 */
-	UPROPERTY(BlueprintAssignable, Category = "RuntimeFilesDownloader")
-		FOnResult OnResult;
+	UPROPERTY(BlueprintAssignable, Category = "Runtime Files Downloader")
+	FOnResult OnResult;
 
 	/**
-	 * The URL used to start this download.
+	 * URL where to start downloading the file
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "RuntimeFilesDownloader")
-		FString FileUrl;
+	UPROPERTY(BlueprintReadOnly, Category = "Runtime Files Downloader")
+	FString FileURL;
 
 	/**
-	 * The path set to save the downloaded file.
+	 * The path where to save the downloaded file
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "RuntimeFilesDownloader")
-		FString FileSavePath;
+	UPROPERTY(BlueprintReadOnly, Category = "Runtime Files Downloader")
+	FString FileSavePath;
 
 	/**
-	 * Instantiates a FileDownloader object, starts downloading and saves it when done.
+	 * Instantiates a Files Downloader object, starts downloading and saves it when done
 	 *
-	 * @return The RuntimeFilesDownloader object. Bind to it's OnResult event to know when it is in the process of downloading and has been downloaded.
+	 * @return The RuntimeFilesDownloader object. Bind to it's OnResult event to know when it is in the process of downloading and has been downloaded
 	 */
-	UFUNCTION(BlueprintCallable, Category = "RuntimeFilesDownloader")
-		static URuntimeFilesDownloaderLibrary* CreateDownloader();
+	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader")
+	static URuntimeFilesDownloaderLibrary* CreateDownloader();
 
 	/**
-	 * Starts downloading a file and saves it when done.
+	 * Starts downloading a file and saves it when done
 	 *
-	 * @param URL		The file Url to be downloaded.
-	 * @param SavePath	The absolute path and file name to save the downloaded file.
-	 * @return			Returns itself.
+	 * @param URL The file URL to be downloaded
+	 * @param SavePath The absolute path and file name to save the downloaded file
+	 * @param TimeOut Maximum waiting time in case of zero download progress, in seconds
+	 * @return Whether the download was started successfully or not
 	 */
-	UFUNCTION(BlueprintCallable, Category = "RuntimeFilesDownloader")
-		URuntimeFilesDownloaderLibrary* DownloadFile(const FString & URL, FString SavePath);
+	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader")
+	bool DownloadFile(const FString& URL, const FString& SavePath, float TimeOut);
 
 private:
 	/**
-	 * File downloading progress callback
+	 * File downloading progress internal callback
 	 */
 	void OnProgress_Internal(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived);
 
 	/**
-	 * File downloading finished callback
+	 * File downloading finished internal callback
 	 */
 	void OnReady_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
 };
