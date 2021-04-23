@@ -79,7 +79,7 @@ public:
 	 * @return Whether the download was started successfully or not
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader")
-	bool DownloadFile(const FString& URL, const FString& SavePath, float TimeOut);
+	bool DownloadFile(const FString& URL, const FString& SavePath, float TimeOut = 5);
 
 private:
 	/**
