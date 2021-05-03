@@ -42,13 +42,13 @@ public:
 	 * Bind to know when the download is on progress.
 	 */
 	UPROPERTY(BlueprintAssignable, Category = "Runtime Files Downloader")
-	FOnProgress OnFilesDownloaderProgress;
+	FOnFilesDownloaderProgress OnProgress;
 
 	/**
 	 * Bind to know when the download is complete (even if it fails)
 	 */
 	UPROPERTY(BlueprintAssignable, Category = "Runtime Files Downloader")
-	FOnResult OnFilesDownloaderResult;
+	FOnFilesDownloaderResult OnResult;
 
 	/**
 	 * URL where to start downloading the file
