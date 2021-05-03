@@ -9,7 +9,7 @@
 /**
  * Possible results from a download request.
  */
-UENUM(BlueprintType, Category = "RuntimeFilesDownloader")
+UENUM(BlueprintType, Category = "Runtime Files Downloader")
 enum DownloadResult
 {
 	SuccessDownloading UMETA(DisplayName = "Success"),
@@ -21,13 +21,13 @@ enum DownloadResult
 /**
  * Declare delegate which will be called during the download process. Divide "Bytes Received" by "Content Length" to get the download percentage
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnProgress, const int32, BytesSent, const int32, BytesReceived,
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnFilesDownloaderProgress, const int32, BytesSent, const int32, BytesReceived,
                                                const int32, ContentLength);
 
 /**
  * Declare a delegate that will be called on the download result
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnResult, TEnumAsByte < DownloadResult >, Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFilesDownloaderResult, TEnumAsByte < DownloadResult >, Result);
 
 /**
  * Library for downloading files by direct link to the specified folder
@@ -42,13 +42,13 @@ public:
 	 * Bind to know when the download is on progress.
 	 */
 	UPROPERTY(BlueprintAssignable, Category = "Runtime Files Downloader")
-	FOnProgress OnProgress;
+	FOnProgress OnFilesDownloaderProgress;
 
 	/**
 	 * Bind to know when the download is complete (even if it fails)
 	 */
 	UPROPERTY(BlueprintAssignable, Category = "Runtime Files Downloader")
-	FOnResult OnResult;
+	FOnResult OnFilesDownloaderResult;
 
 	/**
 	 * URL where to start downloading the file
