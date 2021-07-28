@@ -65,7 +65,7 @@ void URuntimeFilesDownloaderLibrary::OnReady_Internal(FHttpRequestPtr Request, F
 		{
 			if (!PlatformFile.CreateDirectoryTree(*Path))
 			{
-				OnResult.Broadcast(DirectoryCreationFailed);
+				OnResult.Broadcast(EDownloadResult::DirectoryCreationFailed);
 				return;
 			}
 		}
@@ -79,15 +79,15 @@ void URuntimeFilesDownloaderLibrary::OnReady_Internal(FHttpRequestPtr Request, F
 			// Close the file
 			delete FileHandle;
 
-			OnResult.Broadcast(SuccessDownloading);
+			OnResult.Broadcast(EDownloadResult::SuccessDownloading);
 		}
 		else
 		{
-			OnResult.Broadcast(SaveFailed);
+			OnResult.Broadcast(EDownloadResult::SaveFailed);
 		}
 	}
 	else
 	{
-		OnResult.Broadcast(DownloadFailed);
+		OnResult.Broadcast(EDownloadResult::DownloadFailed);
 	}
 }

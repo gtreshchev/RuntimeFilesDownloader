@@ -10,7 +10,7 @@
  * Possible results from a download request.
  */
 UENUM(BlueprintType, Category = "Runtime Files Downloader")
-enum DownloadResult
+enum class EDownloadResult : uint8
 {
 	SuccessDownloading UMETA(DisplayName = "Success"),
 	DownloadFailed UMETA(DisplayName = "Download failed"),
@@ -21,13 +21,13 @@ enum DownloadResult
 /**
  * Declare delegate which will be called during the download process. Divide "Bytes Received" by "Content Length" to get the download percentage
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnFilesDownloaderProgress, const int32, BytesSent, const int32, BytesReceived,
-                                               const int32, ContentLength);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnFilesDownloaderProgress, const int32, BytesSent, const int32,
+                                               BytesReceived, const int32, ContentLength);
 
 /**
  * Declare a delegate that will be called on the download result
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFilesDownloaderResult, TEnumAsByte < DownloadResult >, Result);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFilesDownloaderResult, EDownloadResult, Result);
 
 /**
  * Library for downloading files by direct link to the specified folder
