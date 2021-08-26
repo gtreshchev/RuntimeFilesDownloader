@@ -13,26 +13,49 @@ URuntimeFilesDownloaderLibrary* URuntimeFilesDownloaderLibrary::CreateDownloader
 	return Downloader;
 }
 
-bool URuntimeFilesDownloaderLibrary::DownloadFile(const FString& URL, const FString& SavePath, float TimeOut)
+void URuntimeFilesDownloaderLibrary::DownloadFile(const FString& URL, const FString& SavePath, float Timeout)
 {
-	if (URL.IsEmpty() || SavePath.IsEmpty() || TimeOut <= 0)
+	if (URL.IsEmpty())
 	{
-		return false;
+		OnResult.Broadcast(EDownloadResult::InvalidURL);
+		return;
 	}
 
-	FileURL = URL;
+	if (SavePath.IsEmpty())
+	{
+		OnResult.Broadcast(EDownloadResult::InvalidSavePath);
+		return;
+	}
+
+	if (Timeout < 0) Timeout = 0;
+
 	FileSavePath = SavePath;
 
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
 
 	HttpRequest->SetVerb("GET");
-	HttpRequest->SetURL(FileURL);
-	HttpRequest->SetTimeout(TimeOut);
+	HttpRequest->SetURL(URL);
+	HttpRequest->SetTimeout(Timeout);
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &URuntimeFilesDownloaderLibrary::OnReady_Internal);
 	HttpRequest->OnRequestProgress().BindUObject(this, &URuntimeFilesDownloaderLibrary::OnProgress_Internal);
 
 	// Process the request
 	HttpRequest->ProcessRequest();
+
+	HttpDownloadRequest = &HttpRequest.Get();
+}
+
+bool URuntimeFilesDownloaderLibrary::CancelDownload()
+{
+	if (!HttpDownloadRequest) return false;
+
+	if (HttpDownloadRequest->GetStatus() != EHttpRequestStatus::Processing) return false;
+
+	HttpDownloadRequest->CancelRequest();
+
+	RemoveFromRoot();
+
+	HttpDownloadRequest = nullptr;
 
 	return true;
 }
@@ -51,43 +74,50 @@ void URuntimeFilesDownloaderLibrary::OnReady_Internal(FHttpRequestPtr Request, F
                                                       bool bWasSuccessful)
 {
 	RemoveFromRoot();
-	Request->OnProcessRequestComplete().Unbind();
 
-	if (Response.IsValid() && EHttpResponseCodes::IsOk(Response->GetResponseCode()) && bWasSuccessful)
+	HttpDownloadRequest = nullptr;
+
+	if (!Response.IsValid() || !EHttpResponseCodes::IsOk(Response->GetResponseCode()) || !bWasSuccessful)
 	{
-		// Save file
-		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+		OnResult.Broadcast(EDownloadResult::DownloadFailed);
+		return;
+	}
 
-		// Create save directory if not existent
-		FString Path, Filename, Extension;
-		FPaths::Split(FileSavePath, Path, Filename, Extension);
-		if (!PlatformFile.DirectoryExists(*Path))
-		{
-			if (!PlatformFile.CreateDirectoryTree(*Path))
-			{
-				OnResult.Broadcast(EDownloadResult::DirectoryCreationFailed);
-				return;
-			}
-		}
+	// Save file
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
-		// Open / Create the file
-		IFileHandle* FileHandle = PlatformFile.OpenWrite(*FileSavePath);
-		if (FileHandle)
+	// Create save directory if not existent
+	FString Path, Filename, Extension;
+	FPaths::Split(FileSavePath, Path, Filename, Extension);
+	if (!PlatformFile.DirectoryExists(*Path))
+	{
+		if (!PlatformFile.CreateDirectoryTree(*Path))
 		{
-			// Write the file
-			FileHandle->Write(Response->GetContent().GetData(), Response->GetContentLength());
-			// Close the file
-			delete FileHandle;
+			OnResult.Broadcast(EDownloadResult::DirectoryCreationFailed);
+			return;
+		}
+	}
 
-			OnResult.Broadcast(EDownloadResult::SuccessDownloading);
-		}
-		else
-		{
-			OnResult.Broadcast(EDownloadResult::SaveFailed);
-		}
+	// Delete file if it already exists
+	if (!FileSavePath.IsEmpty() && FPaths::FileExists(*FileSavePath))
+	{
+		IFileManager& FileManager = IFileManager::Get();
+		FileManager.Delete(*FileSavePath);
+	}
+
+	// Open / Create the file
+	IFileHandle* FileHandle = PlatformFile.OpenWrite(*FileSavePath);
+	if (FileHandle)
+	{
+		// Write the file
+		FileHandle->Write(Response->GetContent().GetData(), Response->GetContentLength());
+		// Close the file
+		delete FileHandle;
+
+		OnResult.Broadcast(EDownloadResult::SuccessDownloading);
 	}
 	else
 	{
-		OnResult.Broadcast(EDownloadResult::DownloadFailed);
+		OnResult.Broadcast(EDownloadResult::SaveFailed);
 	}
 }

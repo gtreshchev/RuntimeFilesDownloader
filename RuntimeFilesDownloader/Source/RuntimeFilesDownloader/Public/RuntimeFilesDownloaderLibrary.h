@@ -13,9 +13,11 @@ UENUM(BlueprintType, Category = "Runtime Files Downloader")
 enum class EDownloadResult : uint8
 {
 	SuccessDownloading UMETA(DisplayName = "Success"),
-	DownloadFailed UMETA(DisplayName = "Download failed"),
-	SaveFailed UMETA(DisplayName = "Save failed"),
-	DirectoryCreationFailed UMETA(DisplayName = "Directory creation failed")
+	DownloadFailed,
+	SaveFailed,
+	DirectoryCreationFailed,
+	InvalidURL,
+	InvalidSavePath
 };
 
 /**
@@ -51,12 +53,6 @@ public:
 	FOnFilesDownloaderResult OnResult;
 
 	/**
-	 * URL where to start downloading the file
-	 */
-	UPROPERTY(BlueprintReadOnly, Category = "Runtime Files Downloader")
-	FString FileURL;
-
-	/**
 	 * The path where to save the downloaded file
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "Runtime Files Downloader")
@@ -75,11 +71,19 @@ public:
 	 *
 	 * @param URL The file URL to be downloaded
 	 * @param SavePath The absolute path and file name to save the downloaded file
-	 * @param TimeOut Maximum waiting time in case of zero download progress, in seconds
+	 * @param Timeout Maximum waiting time in case of zero download progress, in seconds
 	 * @return Whether the download was started successfully or not
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader")
-	bool DownloadFile(const FString& URL, const FString& SavePath, float TimeOut = 5);
+	void DownloadFile(const FString& URL, const FString& SavePath, float Timeout = 5);
+
+	/**
+	 * Canceling the current download.
+	 *
+	 * @return Whether the cancellation was successful or not
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader")
+	bool CancelDownload();
 
 private:
 	/**
@@ -91,4 +95,9 @@ private:
 	 * File downloading finished internal callback
 	 */
 	void OnReady_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
+
+	/**
+	 * Using Http download request
+	 */
+	IHttpRequest* HttpDownloadRequest;
 };
