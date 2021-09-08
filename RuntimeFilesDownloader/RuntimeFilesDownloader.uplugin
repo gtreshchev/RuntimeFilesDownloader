@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "RuntimeFilesDownloader",
-	"Description": "Runtime Files Downloader for Unreal Engine. Allows you to download any files via HTTP protocol on runtime and save in device storage",
+	"Description": "Open-source plugin to download any files via the HTTP protocol to the device memory.",
 	"Category": "Code Plugins",
 	"CreatedBy": "Georgy Treshchev",
 	"CreatedByURL": "https://github.com/gtreshchev",
@@ -14,7 +14,7 @@
 	"IsBetaVersion": false,
 	"IsExperimentalVersion": false,
 	"Installed": true,
-	"EngineVersion": "4.26.0",
+	"EngineVersion": "4.27.0",
 	"Modules": [
     {
       "Name": "RuntimeFilesDownloader",

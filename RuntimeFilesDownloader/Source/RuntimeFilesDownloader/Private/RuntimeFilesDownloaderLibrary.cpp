@@ -3,6 +3,7 @@
 #include "RuntimeFilesDownloaderLibrary.h"
 
 #include "Misc/Paths.h"
+#include "HAL/FileManager.h"
 #include "HAL/PlatformFilemanager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 
