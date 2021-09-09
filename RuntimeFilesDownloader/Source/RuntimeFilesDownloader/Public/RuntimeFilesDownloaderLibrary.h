@@ -7,75 +7,42 @@
 #include "RuntimeFilesDownloaderLibrary.generated.h"
 
 /**
- * Possible results from a download request.
+ * Multi-cast delegate broadcast on download progress
  */
-UENUM(BlueprintType, Category = "Runtime Files Downloader")
-enum class EDownloadResult : uint8
-{
-	SuccessDownloading UMETA(DisplayName = "Success"),
-	DownloadFailed,
-	SaveFailed,
-	DirectoryCreationFailed,
-	InvalidURL,
-	InvalidSavePath
-};
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMultiDownloadProgress, const int32, BytesReceived, const int32,
+                                             ContentLength);
 
 /**
- * Declare delegate which will be called during the download process. Divide "Bytes Received" by "Content Length" to get the download percentage
+ * Single-cast delegate broadcast on download progress
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnFilesDownloaderProgress, const int32, BytesSent, const int32,
-                                               BytesReceived, const int32, ContentLength);
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnSingleCastDownloadProgress, const int32, BytesReceived, const int32,
+                                   ContentLength);
+
 
 /**
- * Declare a delegate that will be called on the download result
+ * Base class for downloading files. Use inherited classes depending on how you want to download the file
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnFilesDownloaderResult, EDownloadResult, Result);
-
-/**
- * Library for downloading files by direct link to the specified folder
- */
-UCLASS(BlueprintType, Category = "Runtime Files Downloader")
+UCLASS()
 class RUNTIMEFILESDOWNLOADER_API URuntimeFilesDownloaderLibrary : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	/**
-	 * Bind to know when the download is on progress.
+	 * Multi-cast delegate broadcast on download progress
 	 */
-	UPROPERTY(BlueprintAssignable, Category = "Runtime Files Downloader")
-	FOnFilesDownloaderProgress OnProgress;
+	UPROPERTY(BlueprintAssignable, Category = "Download File To Memory")
+	FOnMultiDownloadProgress OnDownloadProgress;
 
 	/**
-	 * Bind to know when the download is complete (even if it fails)
+	 * Single-cast delegate broadcast on download progress
 	 */
-	UPROPERTY(BlueprintAssignable, Category = "Runtime Files Downloader")
-	FOnFilesDownloaderResult OnResult;
+	FOnSingleCastDownloadProgress OnSingleCastDownloadProgress;
 
 	/**
-	 * The path where to save the downloaded file
+	 * File downloading progress internal callback
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "Runtime Files Downloader")
-	FString FileSavePath;
-
-	/**
-	 * Instantiates a Files Downloader object, starts downloading and saves it when done
-	 *
-	 * @return The RuntimeFilesDownloader object. Bind to it's OnResult event to know when it is in the process of downloading and has been downloaded
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader")
-	static URuntimeFilesDownloaderLibrary* CreateDownloader();
-
-	/**
-	 * Starts downloading a file and saves it when done
-	 *
-	 * @param URL The file URL to be downloaded
-	 * @param SavePath The absolute path and file name to save the downloaded file
-	 * @param Timeout Maximum waiting time in case of zero download progress, in seconds
-	 * @return Whether the download was started successfully or not
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader")
-	void DownloadFile(const FString& URL, const FString& SavePath, float Timeout = 5);
+	void OnProgress_Internal(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived);
 
 	/**
 	 * Canceling the current download.
@@ -85,19 +52,28 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader")
 	bool CancelDownload();
 
-private:
 	/**
-	 * File downloading progress internal callback
+	 * Convert bytes to string
 	 */
-	void OnProgress_Internal(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived);
+	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader")
+	static FString BytesToString(const TArray<uint8>& Bytes);
 
 	/**
-	 * File downloading finished internal callback
+	 * Convert bytes to texture
 	 */
-	void OnReady_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
+	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader")
+	static UTexture2D* BytesToTexture(const TArray<uint8>& Bytes);
 
+
+protected:
 	/**
 	 * Using Http download request
 	 */
 	IHttpRequest* HttpDownloadRequest;
+
+	/**
+	 * Broadcast the progress both multi-cast and single-cast delegates
+	 * @note To get the download percentage, divide the BytesReceived value by the ContentLength
+	 */
+	void BroadcastProgress(const int32 BytesReceived, const int32 ContentLength);
 };

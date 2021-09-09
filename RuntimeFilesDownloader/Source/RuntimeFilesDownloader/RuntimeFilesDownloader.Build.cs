@@ -9,13 +9,7 @@ public class RuntimeFilesDownloader : ModuleRules
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 
-		PublicDependencyModuleNames.AddRange(
-			new string[]
-			{
-				"Core",
-				"HTTP"
-			}
-			);
+		
 
 
 
@@ -23,7 +17,9 @@ public class RuntimeFilesDownloader : ModuleRules
 			new string[]
 			{
 				"CoreUObject",
-				"Engine"
+				"Engine",
+				"Core",
+				"HTTP"
 			}
 			);
 			
