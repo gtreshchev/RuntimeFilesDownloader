@@ -1,8 +1,7 @@
 ![GitHub](https://img.shields.io/github/license/gtreshchev/RuntimeFilesDownloader)
+![Runtime Files Downloader](image/runtimefilesdownloader.png "RuntimeFilesDownloader Unreal Engine Plugin Logo")
 # RuntimeFilesDownloader
 Open-source plugin to download any files via the HTTP protocol to the device memory.
-
-![Runtime Files Downloader Unreal Engine Plugin Logo](image/runtimefilesdownloader.png "RuntimeFilesDownloader Unreal Engine Plugin Logo")
 
 ## Features
 - Low library size (≈ 30 kb)
