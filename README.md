@@ -17,7 +17,7 @@
     .
     <a href="https://github.com/gtreshchev/runtimefilesdownloader/releases">Releases</a>
     .
-    <a href="https://github.com/gtreshchev/runtimefilesdownloader/issues">Report Bug</a>
+   <a href="https://t.me/unrealblog">Support Chat</a>
   </p>
 </p>
 
