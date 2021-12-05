@@ -7,7 +7,7 @@
   <h3 align="center">Runtime Files Downloader</h3>
 
   <p align="center">
-    Downloading files via HTTP to the device memory.
+    Downloading files via HTTP to the device memory
     <br/>
     <br/>
     <a href="https://unreal.blog/runtime-files-downloader"><strong>Explore the docs »</strong></a>
