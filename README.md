@@ -26,9 +26,6 @@
 - No any third party libraries and external dependencies
 - Support for all available devices (Android, iOS, Windows, Mac, Linux, etc)
 
-## Documentation
-Click on the following link to view the documentation - https://unreal.blog/runtime-files-downloader
-
 ## Legal info
 
 Unreal® is a trademark or registered trademark of Epic Games, Inc. in the United States of America and elsewhere.
