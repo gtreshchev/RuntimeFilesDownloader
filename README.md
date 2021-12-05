@@ -1,12 +1,30 @@
-![GitHub](https://img.shields.io/github/license/gtreshchev/RuntimeFilesDownloader)
-![Runtime Files Downloader](image/runtimefilesdownloader.png "RuntimeFilesDownloader Unreal Engine Plugin Logo")
-<br>
-Open-source plugin to download any files via the HTTP protocol to the device memory.
+<br/>
+<p align="center">
+  <a href="https://github.com/gtreshchev/runtimefilesdownloader">
+    <img src="Resources/Icon128.png" alt="Logo" width="80" height="80">
+  </a>
+
+  <h3 align="center">Runtime Files Downloader</h3>
+
+  <p align="center">
+    Downloading files via HTTP to the device memory.
+    <br/>
+    <br/>
+    <a href="https://unreal.blog/runtime-files-downloader"><strong>Explore the docs »</strong></a>
+    <br/>
+    <br/>
+    <a href="https://unrealengine.com/marketplace/product/runtime-files-downloader">Marketplace</a>
+    .
+    <a href="https://github.com/gtreshchev/runtimefilesdownloader/releases">Releases</a>
+    .
+    <a href="https://github.com/gtreshchev/runtimefilesdownloader/issues">Report Bug</a>
+  </p>
+</p>
 
 ## Features
 - Low library size (≈ 30 kb)
 - No any third party libraries and external dependencies
-- Support for all available devices (tested on Windows and Android, but there are no restrictions to work on other devices)
+- Support for all available devices (Android, iOS, Windows, Mac, Linux, etc)
 
 ## Documentation
 Click on the following link to view the documentation - https://unreal.blog/runtime-files-downloader
