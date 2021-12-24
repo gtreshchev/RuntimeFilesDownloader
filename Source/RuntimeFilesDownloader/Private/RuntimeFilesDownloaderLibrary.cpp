@@ -36,10 +36,29 @@ FString URuntimeFilesDownloaderLibrary::BytesToString(const TArray<uint8>& Bytes
 	return Result;
 }
 
-
 UTexture2D* URuntimeFilesDownloaderLibrary::BytesToTexture(const TArray<uint8>& Bytes)
 {
 	return FImageUtils::ImportBufferAsTexture2D(Bytes);
+}
+
+bool URuntimeFilesDownloaderLibrary::LoadFileToArray(TArray<uint8>& Result, const FString& Filename)
+{
+	return FFileHelper::LoadFileToArray(Result, *Filename);
+}
+
+bool URuntimeFilesDownloaderLibrary::SaveArrayToFile(const TArray<uint8>& Bytes, const FString& Filename)
+{
+	return FFileHelper::SaveArrayToFile(Bytes, *Filename);
+}
+
+bool URuntimeFilesDownloaderLibrary::LoadFileToString(FString& Result, const FString& Filename)
+{
+	return FFileHelper::LoadFileToString(Result, *Filename);
+}
+
+bool URuntimeFilesDownloaderLibrary::SaveStringToFile(const FString& String, const FString& Filename)
+{
+	return FFileHelper::SaveStringToFile(String, *Filename);
 }
 
 void URuntimeFilesDownloaderLibrary::BroadcastProgress(const int32 BytesReceived, const int32 ContentLength)
