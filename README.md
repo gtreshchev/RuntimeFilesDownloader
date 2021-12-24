@@ -7,7 +7,7 @@
   <h3 align="center">Runtime Files Downloader</h3>
 
   <p align="center">
-    Downloading files via HTTP to the device memory
+    Downloading files over HTTP / HTTPS at runtime.
     <br/>
     <br/>
     <a href="https://github.com/gtreshchev/RuntimeFilesDownloader/wiki"><strong>Explore the docs »</strong></a>
