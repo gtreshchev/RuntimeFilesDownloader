@@ -10,7 +10,7 @@
     Downloading files via HTTP to the device memory
     <br/>
     <br/>
-    <a href="https://unreal.blog/runtime-files-downloader"><strong>Explore the docs »</strong></a>
+    <a href="https://github.com/gtreshchev/RuntimeFilesDownloader/wiki"><strong>Explore the docs »</strong></a>
     <br/>
     <br/>
     <a href="https://unrealengine.com/marketplace/product/runtime-files-downloader">Marketplace</a>
