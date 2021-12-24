@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "RuntimeFilesDownloader",
-	"Description": "Open-source plugin to download any files via the HTTP protocol to the device memory.",
+	"Description": "Runtime Files Downloader is an open-source plugin for downloading files over HTTP / HTTPS at runtime.",
 	"Category": "Code Plugins",
 	"CreatedBy": "Georgy Treshchev",
 	"CreatedByURL": "https://github.com/gtreshchev",
