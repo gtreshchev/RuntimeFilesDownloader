@@ -4,6 +4,7 @@
 
 #include "Containers/UnrealString.h"
 #include "ImageUtils.h"
+#include "Misc/FileHelper.h"
 
 bool URuntimeFilesDownloaderLibrary::CancelDownload()
 {
