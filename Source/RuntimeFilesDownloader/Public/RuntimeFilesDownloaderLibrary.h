@@ -9,14 +9,12 @@
 /**
  * Multi-cast delegate broadcast on download progress
  */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMultiDownloadProgress, const int32, BytesReceived, const int32,
-                                             ContentLength);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMultiDownloadProgress, const int32, BytesReceived, const int32, ContentLength);
 
 /**
  * Single-cast delegate broadcast on download progress
  */
-DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnSingleCastDownloadProgress, const int32, BytesReceived, const int32,
-                                   ContentLength);
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnSingleCastDownloadProgress, const int32, BytesReceived, const int32, ContentLength);
 
 
 /**
@@ -42,7 +40,7 @@ public:
 	/**
 	 * File downloading progress internal callback
 	 */
-	void OnProgress_Internal(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived);
+	void OnProgress_Internal(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived) const;
 
 	/**
 	 * Canceling the current download.
@@ -103,5 +101,5 @@ protected:
 	 * Broadcast the progress both multi-cast and single-cast delegates
 	 * @note To get the download percentage, divide the BytesReceived value by the ContentLength
 	 */
-	void BroadcastProgress(const int32 BytesReceived, const int32 ContentLength);
+	void BroadcastProgress(const int32 BytesReceived, const int32 ContentLength) const;
 };

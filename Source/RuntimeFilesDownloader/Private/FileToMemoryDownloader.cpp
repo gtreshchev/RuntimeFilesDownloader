@@ -3,9 +3,7 @@
 #include "FileToMemoryDownloader.h"
 
 
-void UFileToMemoryDownloader::BP_DownloadFileToMemory(const FString& URL, float Timeout,
-                                                      const FOnSingleCastDownloadProgress& OnProgress,
-                                                      const FOnSingleCastFileToMemoryDownloadComplete& OnComplete)
+void UFileToMemoryDownloader::BP_DownloadFileToMemory(const FString& URL, float Timeout, const FOnSingleCastDownloadProgress& OnProgress, const FOnSingleCastFileToMemoryDownloadComplete& OnComplete)
 {
 	UFileToMemoryDownloader* Downloader = NewObject<UFileToMemoryDownloader>(StaticClass());
 	Downloader->AddToRoot();
@@ -14,8 +12,7 @@ void UFileToMemoryDownloader::BP_DownloadFileToMemory(const FString& URL, float 
 	Downloader->DownloadFileToMemory(URL, Timeout);
 }
 
-void UFileToMemoryDownloader::BroadcastResult(const TArray<uint8>& DownloadedContent,
-                                              EDownloadToMemoryResult Result) const
+void UFileToMemoryDownloader::BroadcastResult(const TArray<uint8>& DownloadedContent, EDownloadToMemoryResult Result) const
 {
 	OnSingleCastDownloadComplete.ExecuteIfBound(DownloadedContent, Result);
 	OnDownloadComplete.Broadcast(DownloadedContent, Result);
@@ -31,7 +28,7 @@ void UFileToMemoryDownloader::DownloadFileToMemory(const FString& URL, float Tim
 
 	if (Timeout < 0) Timeout = 0;
 
-	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
+	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest{FHttpModule::Get().CreateRequest()};
 
 	HttpRequest->SetVerb("GET");
 	HttpRequest->SetURL(URL);
@@ -40,17 +37,14 @@ void UFileToMemoryDownloader::DownloadFileToMemory(const FString& URL, float Tim
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UFileToMemoryDownloader::OnComplete_Internal);
 	HttpRequest->OnRequestProgress().BindUObject(this, &URuntimeFilesDownloaderLibrary::OnProgress_Internal);
 
-	// Process the request
+	/** Process the request */
 	HttpRequest->ProcessRequest();
 
 	HttpDownloadRequest = &HttpRequest.Get();
 }
 
-void UFileToMemoryDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response,
-                                                  bool bWasSuccessful)
+void UFileToMemoryDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
 {
-	RemoveFromRoot();
-
 	HttpDownloadRequest = nullptr;
 
 	if (!Response.IsValid() || !EHttpResponseCodes::IsOk(Response->GetResponseCode()) || !bWasSuccessful)
@@ -62,4 +56,6 @@ void UFileToMemoryDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHttp
 	const TArray<uint8>& ReturnBytes = TArray<uint8>(Response->GetContent().GetData(), Response->GetContentLength());
 
 	BroadcastResult(ReturnBytes, EDownloadToMemoryResult::SuccessDownloading);
+
+	RemoveFromRoot();
 }

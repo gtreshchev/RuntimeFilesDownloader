@@ -8,11 +8,9 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 
 
-UFileToStorageDownloader* UFileToStorageDownloader::BP_DownloadFileToStorage(
-	const FString& URL, const FString& SavePath, float Timeout, const FOnSingleCastDownloadProgress& OnProgress,
-	const FOnSingleCastFileToStorageDownloadComplete& OnComplete)
+UFileToStorageDownloader* UFileToStorageDownloader::BP_DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FOnSingleCastDownloadProgress& OnProgress, const FOnSingleCastFileToStorageDownloadComplete& OnComplete)
 {
-	UFileToStorageDownloader* Downloader = NewObject<UFileToStorageDownloader>(StaticClass());
+	UFileToStorageDownloader* Downloader{NewObject<UFileToStorageDownloader>(StaticClass())};
 	Downloader->AddToRoot();
 	Downloader->OnSingleCastDownloadProgress = OnProgress;
 	Downloader->OnSingleCastDownloadComplete = OnComplete;
@@ -38,7 +36,7 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 
 	FileSavePath = SavePath;
 
-	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = FHttpModule::Get().CreateRequest();
+	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest{FHttpModule::Get().CreateRequest()};
 
 	HttpRequest->SetVerb("GET");
 	HttpRequest->SetURL(URL);
@@ -86,20 +84,21 @@ void UFileToStorageDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHtt
 		}
 	}
 
-	// Delete file if it already exists
+	/** Delete the file if it already exists */
 	if (!FileSavePath.IsEmpty() && FPaths::FileExists(*FileSavePath))
 	{
 		IFileManager& FileManager = IFileManager::Get();
 		FileManager.Delete(*FileSavePath);
 	}
 
-	// Open / Create the file
+	/** Open / Create the file */
 	IFileHandle* FileHandle = PlatformFile.OpenWrite(*FileSavePath);
 	if (FileHandle)
 	{
-		// Write the file
+		/** Write the file */
 		FileHandle->Write(Response->GetContent().GetData(), Response->GetContentLength());
-		// Close the file
+
+		/** Close the file */
 		delete FileHandle;
 
 		BroadcastResult(EDownloadToStorageResult::SuccessDownloading);

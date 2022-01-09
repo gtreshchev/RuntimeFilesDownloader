@@ -8,9 +8,15 @@
 
 bool URuntimeFilesDownloaderLibrary::CancelDownload()
 {
-	if (!HttpDownloadRequest) return false;
+	if (!HttpDownloadRequest)
+	{
+		return false;
+	}
 
-	if (HttpDownloadRequest->GetStatus() != EHttpRequestStatus::Processing) return false;
+	if (HttpDownloadRequest->GetStatus() != EHttpRequestStatus::Processing)
+	{
+		return false;
+	}
 
 	HttpDownloadRequest->CancelRequest();
 
@@ -62,14 +68,14 @@ bool URuntimeFilesDownloaderLibrary::SaveStringToFile(const FString& String, con
 	return FFileHelper::SaveStringToFile(String, *Filename);
 }
 
-void URuntimeFilesDownloaderLibrary::BroadcastProgress(const int32 BytesReceived, const int32 ContentLength)
+void URuntimeFilesDownloaderLibrary::BroadcastProgress(const int32 BytesReceived, const int32 ContentLength) const
 {
 	OnSingleCastDownloadProgress.ExecuteIfBound(BytesReceived, ContentLength);
 
 	OnDownloadProgress.Broadcast(BytesReceived, ContentLength);
 }
 
-void URuntimeFilesDownloaderLibrary::OnProgress_Internal(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived)
+void URuntimeFilesDownloaderLibrary::OnProgress_Internal(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived) const
 {
 	const FHttpResponsePtr Response = Request->GetResponse();
 	if (Response.IsValid())
