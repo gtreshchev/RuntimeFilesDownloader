@@ -19,21 +19,7 @@
     {
       "Name": "RuntimeFilesDownloader",
       "Type": "Runtime",
-      "LoadingPhase": "Default",
-      "WhitelistPlatforms": [
-        "Win64",
-        "Win32",
-        "Mac",
-        "Android",
-        "IOS",
-        "Linux"
-      ],
-      "BlacklistPlatforms": [
-        "XboxOne",
-        "PS4",
-        "TVOS",
-        "Switch"
-      ]
+      "LoadingPhase": "Default"
     }
   ]
 }
