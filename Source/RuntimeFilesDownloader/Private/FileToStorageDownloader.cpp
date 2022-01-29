@@ -128,7 +128,7 @@ void UFileToStorageDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHtt
 		{
 			if (!PlatformFile.CreateDirectoryTree(*Path))
 			{
-				UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Unable to create directory to save downloaded file"));
+				UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Unable to create a directory '%s' to save the downloaded file"), *Path);
 				BroadcastResult(EDownloadToStorageResult::DirectoryCreationFailed);
 				return;
 			}
