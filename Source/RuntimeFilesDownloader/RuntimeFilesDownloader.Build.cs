@@ -16,7 +16,7 @@ public class RuntimeFilesDownloader : ModuleRules
 				"Core",
 				"HTTP"
 			}
-			);
-			
+		);
+		
 	}
 }

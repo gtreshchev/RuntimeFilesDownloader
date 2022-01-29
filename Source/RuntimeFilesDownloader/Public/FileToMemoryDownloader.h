@@ -20,17 +20,17 @@ enum class EDownloadToMemoryResult : uint8
 };
 
 /**
- * Multi-cast delegate broadcast on download completed
+ * Multi-cast delegate to track download completion
  */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnFileToMemoryDownloadComplete, const TArray<uint8>&, DownloadedContent, EDownloadToMemoryResult, Result);
 
 /**
- * Single-cast delegate broadcast on download completed
+ * Single-cast delegate to track download completion
  */
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnSingleCastFileToMemoryDownloadComplete, const TArray<uint8>&, DownloadedContent, EDownloadToMemoryResult, Result);
 
 /**
- * Library for downloading files to memory. Downloads a file into RAM and outputs an array of bytes.
+ * Library for downloading files to memory. Downloads a file into RAM and outputs an array of bytes
  */
 UCLASS(BlueprintType, Category = "File To Memory Downloader")
 class RUNTIMEFILESDOWNLOADER_API UFileToMemoryDownloader : public URuntimeFilesDownloaderLibrary
@@ -39,35 +39,36 @@ class RUNTIMEFILESDOWNLOADER_API UFileToMemoryDownloader : public URuntimeFilesD
 
 public:
 	/**
-	 * Multi-cast delegate broadcast on download completed
+	 * Multi-cast delegate to track download completion
 	 */
-	UPROPERTY(BlueprintAssignable, Category = "File To Disk Downloader")
+	UPROPERTY(BlueprintAssignable, Category = "File To Memory Downloader|Delegates")
 	FOnFileToMemoryDownloadComplete OnDownloadComplete;
 
 	/**
-	 * Single-cast delegate broadcast on download completed
+	 * Single-cast delegate to track download completion
 	 */
 	FOnSingleCastFileToMemoryDownloadComplete OnSingleCastDownloadComplete;
 
 	/**
-	 * Download the file and save it to the physical memory (RAM). Only multi-cast delegates are used
+	 * Download the file and save it to the physical memory (RAM). Call only if you want to use multi-cast delegates
 	 *
 	 * @param URL The file URL to be downloaded
 	 * @param Timeout Maximum waiting time in case of zero download progress, in seconds
+	 * @param ContentType The specified string will be set to the header in the Content-Type field. Enter MIME to specify the download file type
 	 * @param OnProgress Delegate broadcast on download progress
 	 * @param OnComplete Delegate broadcast on download complete
 	 */
-	UFUNCTION(BlueprintCallable, Category = "File To Memory Downloader", meta = (DisplayName = "Download File To Memory"))
-	static void BP_DownloadFileToMemory(const FString& URL, float Timeout, const FOnSingleCastDownloadProgress& OnProgress, const FOnSingleCastFileToMemoryDownloadComplete& OnComplete);
+	UFUNCTION(BlueprintCallable, Category = "File To Memory Downloader|Main", meta = (DisplayName = "Download File To Memory"))
+	static void BP_DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnSingleCastDownloadProgress& OnProgress, const FOnSingleCastFileToMemoryDownloadComplete& OnComplete);
 
 	/**
-	 * Download the file and save it to the physical memory (RAM). Only single-cast delegates are used
+	 * Download the file and save it to the physical memory (RAM). It is recommended to call only if you want to use single-cast delegates
 	 *
 	 * @param URL The file URL to be downloaded
 	 * @param Timeout Maximum waiting time in case of zero download progress, in seconds
+	 * @param ContentType The specified string will be set to the header in the Content-Type field. Enter MIME to specify the download file type
 	 */
-	UFUNCTION(BlueprintCallable, Category = "File To Memory Downloader", meta = (DisplayName = "Download File To Memory"))
-	void DownloadFileToMemory(const FString& URL, float Timeout = 5);
+	void DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType);
 
 private:
 	/**

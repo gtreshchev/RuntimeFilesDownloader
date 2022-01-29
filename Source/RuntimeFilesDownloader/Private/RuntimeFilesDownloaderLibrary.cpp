@@ -1,6 +1,7 @@
 // Georgy Treshchev 2022.
 
 #include "RuntimeFilesDownloaderLibrary.h"
+#include "RuntimeFilesDownloaderDefines.h"
 
 #include "Containers/UnrealString.h"
 #include "ImageUtils.h"
@@ -10,11 +11,13 @@ bool URuntimeFilesDownloaderLibrary::CancelDownload()
 {
 	if (!HttpDownloadRequest)
 	{
+		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Unable to cancel download due to missing request"));
 		return false;
 	}
 
 	if (HttpDownloadRequest->GetStatus() != EHttpRequestStatus::Processing)
 	{
+		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Unable to cancel download because download is not in progress"));
 		return false;
 	}
 
@@ -72,15 +75,22 @@ void URuntimeFilesDownloaderLibrary::BroadcastProgress(const int32 BytesReceived
 {
 	OnSingleCastDownloadProgress.ExecuteIfBound(BytesReceived, ContentLength);
 
-	OnDownloadProgress.Broadcast(BytesReceived, ContentLength);
+	if (OnDownloadProgress.IsBound())
+	{
+		OnDownloadProgress.Broadcast(BytesReceived, ContentLength);
+	}
 }
 
 void URuntimeFilesDownloaderLibrary::OnProgress_Internal(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived) const
 {
-	const FHttpResponsePtr Response = Request->GetResponse();
-	if (Response.IsValid())
+	const FHttpResponsePtr Response{Request->GetResponse()};
+
+	if (!Response.IsValid())
 	{
-		const int32 FullSize = Response->GetContentLength();
-		BroadcastProgress(BytesReceived, FullSize);
+		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Unable to report download progress because response is invalid"));
+		return;
 	}
+
+	const int32 FullSize{Response->GetContentLength()};
+	BroadcastProgress(BytesReceived, FullSize);
 }
