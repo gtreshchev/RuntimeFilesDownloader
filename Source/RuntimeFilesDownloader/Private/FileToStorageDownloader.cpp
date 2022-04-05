@@ -66,7 +66,7 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UFileToStorageDownloader::OnComplete_Internal);
 	HttpRequest->OnRequestProgress().BindUObject(this, &URuntimeFilesDownloaderLibrary::OnProgress_Internal);
 
-	/** Process the request */
+	// Process the request
 	HttpRequest->ProcessRequest();
 
 	HttpDownloadRequest = &HttpRequest.Get();
@@ -120,7 +120,7 @@ void UFileToStorageDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHtt
 
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
-	/** Create save directory if not existent */
+	// Create save directory if not existent
 	{
 		FString Path, Filename, Extension;
 		FPaths::Split(FileSavePath, Path, Filename, Extension);
@@ -135,21 +135,21 @@ void UFileToStorageDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHtt
 		}
 	}
 
-	/** Delete the file if it already exists */
+	// Delete the file if it already exists
 	if (!FileSavePath.IsEmpty() && FPaths::FileExists(*FileSavePath))
 	{
 		IFileManager& FileManager = IFileManager::Get();
 		FileManager.Delete(*FileSavePath);
 	}
 
-	/** Open / Create the file */
+	// Open / Create the file
 	IFileHandle* FileHandle = PlatformFile.OpenWrite(*FileSavePath);
 	if (FileHandle)
 	{
-		/** Write the file */
+		// Write the file
 		FileHandle->Write(Response->GetContent().GetData(), Response->GetContentLength());
 
-		/** Close the file */
+		// Close the file
 		delete FileHandle;
 
 		Response.Reset();

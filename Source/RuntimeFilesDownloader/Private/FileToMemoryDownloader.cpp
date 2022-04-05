@@ -67,7 +67,7 @@ void UFileToMemoryDownloader::DownloadFileToMemory(const FString& URL, float Tim
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UFileToMemoryDownloader::OnComplete_Internal);
 	HttpRequest->OnRequestProgress().BindUObject(this, &URuntimeFilesDownloaderLibrary::OnProgress_Internal);
 
-	/** Process the request */
+	// Process the request
 	HttpRequest->ProcessRequest();
 
 	HttpDownloadRequest = &HttpRequest.Get();
