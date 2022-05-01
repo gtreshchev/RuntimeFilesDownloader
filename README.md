@@ -4,7 +4,7 @@
     <img src="Resources/Icon128.png" alt="Logo" width="80" height="80">
   </a>
 
-  <h3 align="center">Runtime Files Downloader</h3>
+<h3 align="center">Runtime Files Downloader</h3>
 
   <p align="center">
     Downloading files over HTTP / HTTPS at runtime.
@@ -19,10 +19,10 @@
     .
    <a href="https://t.me/unrealblog">Support Chat</a>
   </p>
-</p>
 
 ## Features
-- Low library size (≈ 30 kb)
+
+- Low size
 - No any third party libraries and external dependencies
 - Support for all available devices (Android, iOS, Windows, Mac, Linux, etc)
 
