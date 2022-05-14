@@ -1,13 +1,13 @@
 // Georgy Treshchev 2022.
 
-#include "RuntimeFilesDownloaderLibrary.h"
+#include "BaseFilesDownloader.h"
 #include "RuntimeFilesDownloaderDefines.h"
 
 #include "Containers/UnrealString.h"
 #include "ImageUtils.h"
 #include "Misc/FileHelper.h"
 
-bool URuntimeFilesDownloaderLibrary::CancelDownload()
+bool UBaseFilesDownloader::CancelDownload()
 {
 	if (!HttpDownloadRequest)
 	{
@@ -30,7 +30,7 @@ bool URuntimeFilesDownloaderLibrary::CancelDownload()
 	return true;
 }
 
-FString URuntimeFilesDownloaderLibrary::BytesToString(const TArray<uint8>& Bytes)
+FString UBaseFilesDownloader::BytesToString(const TArray<uint8>& Bytes)
 {
 	const uint8* BytesData = Bytes.GetData();
 
@@ -46,42 +46,45 @@ FString URuntimeFilesDownloaderLibrary::BytesToString(const TArray<uint8>& Bytes
 	return Result;
 }
 
-UTexture2D* URuntimeFilesDownloaderLibrary::BytesToTexture(const TArray<uint8>& Bytes)
+UTexture2D* UBaseFilesDownloader::BytesToTexture(const TArray<uint8>& Bytes)
 {
 	return FImageUtils::ImportBufferAsTexture2D(Bytes);
 }
 
-bool URuntimeFilesDownloaderLibrary::LoadFileToArray(TArray<uint8>& Result, const FString& Filename)
+bool UBaseFilesDownloader::LoadFileToArray(TArray<uint8>& Result, const FString& Filename)
 {
 	return FFileHelper::LoadFileToArray(Result, *Filename);
 }
 
-bool URuntimeFilesDownloaderLibrary::SaveArrayToFile(const TArray<uint8>& Bytes, const FString& Filename)
+bool UBaseFilesDownloader::SaveArrayToFile(const TArray<uint8>& Bytes, const FString& Filename)
 {
 	return FFileHelper::SaveArrayToFile(Bytes, *Filename);
 }
 
-bool URuntimeFilesDownloaderLibrary::LoadFileToString(FString& Result, const FString& Filename)
+bool UBaseFilesDownloader::LoadFileToString(FString& Result, const FString& Filename)
 {
 	return FFileHelper::LoadFileToString(Result, *Filename);
 }
 
-bool URuntimeFilesDownloaderLibrary::SaveStringToFile(const FString& String, const FString& Filename)
+bool UBaseFilesDownloader::SaveStringToFile(const FString& String, const FString& Filename)
 {
 	return FFileHelper::SaveStringToFile(String, *Filename);
 }
 
-void URuntimeFilesDownloaderLibrary::BroadcastProgress(const int32 BytesReceived, const int32 ContentLength) const
+void UBaseFilesDownloader::BroadcastProgress(const int32 BytesReceived, const int32 ContentLength) const
 {
-	OnSingleCastDownloadProgress.ExecuteIfBound(BytesReceived, ContentLength);
-
+	if (OnDownloadProgressNative.IsBound())
+	{
+		OnDownloadProgressNative.Execute(BytesReceived, ContentLength);
+	}
+	
 	if (OnDownloadProgress.IsBound())
 	{
-		OnDownloadProgress.Broadcast(BytesReceived, ContentLength);
+		OnDownloadProgress.Execute(BytesReceived, ContentLength);
 	}
 }
 
-void URuntimeFilesDownloaderLibrary::OnProgress_Internal(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived) const
+void UBaseFilesDownloader::OnProgress_Internal(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived) const
 {
 	const FHttpResponsePtr Response{Request->GetResponse()};
 

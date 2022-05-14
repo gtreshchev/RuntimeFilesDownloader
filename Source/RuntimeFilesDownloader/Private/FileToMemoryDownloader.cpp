@@ -6,28 +6,41 @@
 #include "Runtime/Launch/Resources/Version.h"
 
 
-void UFileToMemoryDownloader::BP_DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnSingleCastDownloadProgress& OnProgress, const FOnSingleCastFileToMemoryDownloadComplete& OnComplete)
+void UFileToMemoryDownloader::BP_DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToMemoryDownloadComplete& OnComplete)
 {
 	UFileToMemoryDownloader* Downloader = NewObject<UFileToMemoryDownloader>(StaticClass());
 
 	Downloader->AddToRoot();
 
-	Downloader->OnSingleCastDownloadProgress = OnProgress;
-	Downloader->OnSingleCastDownloadComplete = OnComplete;
+	Downloader->OnDownloadProgress = OnProgress;
+	Downloader->OnDownloadComplete = OnComplete;
+
+	Downloader->DownloadFileToMemory(URL, Timeout, ContentType);
+}
+
+void UFileToMemoryDownloader::DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgressNative& OnProgress, const FOnFileToMemoryDownloadCompleteNative& OnComplete)
+{
+	UFileToMemoryDownloader* Downloader = NewObject<UFileToMemoryDownloader>(StaticClass());
+
+	Downloader->AddToRoot();
+
+	Downloader->OnDownloadProgressNative = OnProgress;
+	Downloader->OnDownloadCompleteNative = OnComplete;
 
 	Downloader->DownloadFileToMemory(URL, Timeout, ContentType);
 }
 
 void UFileToMemoryDownloader::BroadcastResult(const TArray<uint8>& DownloadedContent, EDownloadToMemoryResult Result) const
 {
-	OnSingleCastDownloadComplete.ExecuteIfBound(DownloadedContent, Result);
-
-	if (OnDownloadComplete.IsBound())
+	if (OnDownloadCompleteNative.IsBound())
 	{
-		OnDownloadComplete.Broadcast(DownloadedContent, Result);
+		OnDownloadCompleteNative.Execute(DownloadedContent, Result);
 	}
-
-	if (!OnSingleCastDownloadComplete.IsBound() && !OnDownloadComplete.IsBound())
+	else if (OnDownloadComplete.IsBound())
+	{
+		OnDownloadComplete.Execute(DownloadedContent, Result);
+	}
+	else
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You did not bind to a delegate to get download result"));
 	}
@@ -42,12 +55,15 @@ void UFileToMemoryDownloader::DownloadFileToMemory(const FString& URL, float Tim
 		return;
 	}
 
-	if (Timeout < 0) Timeout = 0;
+	if (Timeout < 0)
+	{
+		Timeout = 0;
+	}
 
 #if ENGINE_MAJOR_VERSION >= 5 || ENGINE_MINOR_VERSION >= 26
 	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest{FHttpModule::Get().CreateRequest()};
 #else
-	const TSharedRef<IHttpRequest> HttpRequest {FHttpModule::Get().CreateRequest()};
+	const TSharedRef<IHttpRequest> HttpRequest{FHttpModule::Get().CreateRequest()};
 #endif
 
 	HttpRequest->SetVerb("GET");
@@ -65,7 +81,7 @@ void UFileToMemoryDownloader::DownloadFileToMemory(const FString& URL, float Tim
 	}
 
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UFileToMemoryDownloader::OnComplete_Internal);
-	HttpRequest->OnRequestProgress().BindUObject(this, &URuntimeFilesDownloaderLibrary::OnProgress_Internal);
+	HttpRequest->OnRequestProgress().BindUObject(this, &UBaseFilesDownloader::OnProgress_Internal);
 
 	// Process the request
 	HttpRequest->ProcessRequest();
@@ -106,6 +122,6 @@ void UFileToMemoryDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHttp
 	Response.Reset();
 
 	BroadcastResult(ReturnBytes, EDownloadToMemoryResult::SuccessDownloading);
-
+	
 	RemoveFromRoot();
 }

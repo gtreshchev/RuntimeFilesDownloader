@@ -9,14 +9,28 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 
 
-UFileToStorageDownloader* UFileToStorageDownloader::BP_DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, const FOnSingleCastDownloadProgress& OnProgress, const FOnSingleCastFileToStorageDownloadComplete& OnComplete)
+UFileToStorageDownloader* UFileToStorageDownloader::BP_DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToStorageDownloadComplete& OnComplete)
 {
 	UFileToStorageDownloader* Downloader{NewObject<UFileToStorageDownloader>(StaticClass())};
 
 	Downloader->AddToRoot();
 
-	Downloader->OnSingleCastDownloadProgress = OnProgress;
-	Downloader->OnSingleCastDownloadComplete = OnComplete;
+	Downloader->OnDownloadProgress = OnProgress;
+	Downloader->OnDownloadComplete = OnComplete;
+
+	Downloader->DownloadFileToStorage(URL, SavePath, Timeout, ContentType);
+
+	return Downloader;
+}
+
+UFileToStorageDownloader* UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, const FOnDownloadProgressNative& OnProgress, const FOnFileToStorageDownloadCompleteNative& OnComplete)
+{
+	UFileToStorageDownloader* Downloader{NewObject<UFileToStorageDownloader>(StaticClass())};
+
+	Downloader->AddToRoot();
+
+	Downloader->OnDownloadProgressNative = OnProgress;
+	Downloader->OnDownloadCompleteNative = OnComplete;
 
 	Downloader->DownloadFileToStorage(URL, SavePath, Timeout, ContentType);
 
@@ -39,7 +53,10 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 		return;
 	}
 
-	if (Timeout < 0) Timeout = 0;
+	if (Timeout < 0)
+	{
+		Timeout = 0;
+	}
 
 	FileSavePath = SavePath;
 
@@ -64,7 +81,7 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 	}
 
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UFileToStorageDownloader::OnComplete_Internal);
-	HttpRequest->OnRequestProgress().BindUObject(this, &URuntimeFilesDownloaderLibrary::OnProgress_Internal);
+	HttpRequest->OnRequestProgress().BindUObject(this, &UBaseFilesDownloader::OnProgress_Internal);
 
 	// Process the request
 	HttpRequest->ProcessRequest();
@@ -74,14 +91,15 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 
 void UFileToStorageDownloader::BroadcastResult(EDownloadToStorageResult Result) const
 {
-	OnSingleCastDownloadComplete.ExecuteIfBound(Result);
-
-	if (OnDownloadComplete.IsBound())
+	if (OnDownloadCompleteNative.IsBound())
 	{
-		OnDownloadComplete.Broadcast(Result);
+		OnDownloadCompleteNative.Execute(Result);
 	}
-
-	if (!OnSingleCastDownloadComplete.IsBound() && !OnDownloadComplete.IsBound())
+	else if (OnDownloadComplete.IsBound())
+	{
+		OnDownloadComplete.Execute(Result);
+	}
+	else
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You did not bind to a delegate to get download result"));
 	}

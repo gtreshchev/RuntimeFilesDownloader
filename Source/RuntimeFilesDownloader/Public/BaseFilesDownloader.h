@@ -4,39 +4,32 @@
 
 #include "Http.h"
 
-#include "RuntimeFilesDownloaderLibrary.generated.h"
+#include "BaseFilesDownloader.generated.h"
 
-/**
- * Multi-cast delegate to track download progress
- */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnMultiDownloadProgress, const int32, BytesReceived, const int32, ContentLength);
+/** Dynamic delegate to track download progress */
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnDownloadProgress, int32, BytesReceived, int32, ContentLength);
 
-/**
- * Single-cast delegate to track download progress
- */
-DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnSingleCastDownloadProgress, const int32, BytesReceived, const int32, ContentLength);
+/** Static delegate to track download progress */
+DECLARE_DELEGATE_TwoParams(FOnDownloadProgressNative, int32, int32);
 
 
 /**
  * Base class for downloading files. It also contains some helper functions
  */
 UCLASS(BlueprintType, Category = "Runtime Files Downloader")
-class RUNTIMEFILESDOWNLOADER_API URuntimeFilesDownloaderLibrary : public UObject
+class RUNTIMEFILESDOWNLOADER_API UBaseFilesDownloader : public UObject
 {
 	GENERATED_BODY()
 
+protected:
+
+	/** Static delegate to track download progress */
+	FOnDownloadProgressNative OnDownloadProgressNative;
+
+	/** Dynamic delegate to track download progress */
+	FOnDownloadProgress OnDownloadProgress;
+
 public:
-	/**
-	 * Multi-cast delegate to track download progress
-	 */
-	UPROPERTY(BlueprintAssignable, Category = "Runtime Files Downloader|Delegates")
-	FOnMultiDownloadProgress OnDownloadProgress;
-
-	/**
-	 * Single-cast delegate to track download progress
-	 */
-	FOnSingleCastDownloadProgress OnSingleCastDownloadProgress;
-
 	/**
 	 * File downloading progress internal callback
 	 */
@@ -77,6 +70,7 @@ public:
 	/**
 	 * Load a text file to an FString.
 	 * Supports all combination of ANSI/Unicode files and platforms
+	 * 
 	 * @param Result string representation of the loaded file
 	 * @param Filename name of the file to load
 	 */
@@ -91,9 +85,7 @@ public:
 	static bool SaveStringToFile(const FString& String, const FString& Filename);
 
 protected:
-	/**
-	 * Using Http download request
-	 */
+	/** Http download request */
 	IHttpRequest* HttpDownloadRequest;
 
 	/**
