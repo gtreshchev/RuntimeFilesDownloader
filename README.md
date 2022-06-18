@@ -17,7 +17,7 @@
     .
     <a href="https://github.com/gtreshchev/runtimefilesdownloader/releases">Releases</a>
     .
-   <a href="https://t.me/unrealblog">Support Chat</a>
+   <a href="https://t.me/georgydev">Support Chat</a>
   </p>
 
 ## Features
