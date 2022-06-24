@@ -103,10 +103,12 @@ void UFileToMemoryDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHttp
 		{
 			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Response is not valid"));
 		}
-
-		if (!EHttpResponseCodes::IsOk(Response->GetResponseCode()))
+		else
 		{
-			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Status code is not Ok"));
+			if (!EHttpResponseCodes::IsOk(Response->GetResponseCode()))
+			{
+				UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Status code is not Ok"));
+			}
 		}
 
 		if (!bWasSuccessful)
@@ -122,6 +124,6 @@ void UFileToMemoryDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHttp
 	Response.Reset();
 
 	BroadcastResult(ReturnBytes, EDownloadToMemoryResult::SuccessDownloading);
-	
+
 	RemoveFromRoot();
 }

@@ -120,10 +120,12 @@ void UFileToStorageDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHtt
 		{
 			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Response is not valid"));
 		}
-
-		if (!EHttpResponseCodes::IsOk(Response->GetResponseCode()))
+		else
 		{
-			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Status code is not Ok"));
+			if (!EHttpResponseCodes::IsOk(Response->GetResponseCode()))
+			{
+				UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Status code is not Ok"));
+			}
 		}
 
 		if (!bWasSuccessful)
