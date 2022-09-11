@@ -91,12 +91,12 @@ void UFileToMemoryDownloader::DownloadFileToMemory(const FString& URL, float Tim
 
 void UFileToMemoryDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
 {
+	RemoveFromRoot();
+
 	HttpDownloadRequest = nullptr;
 
 	if (!Response.IsValid() || !EHttpResponseCodes::IsOk(Response->GetResponseCode()) || !bWasSuccessful)
 	{
-		BroadcastResult(TArray<uint8>(), EDownloadToMemoryResult::DownloadFailed);
-
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("An error occurred while downloading the file to memory"));
 
 		if (!Response.IsValid())
@@ -116,14 +116,12 @@ void UFileToMemoryDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHttp
 			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Download failed"));
 		}
 
+		BroadcastResult(TArray<uint8>(), EDownloadToMemoryResult::DownloadFailed);
+
 		return;
 	}
 
 	const TArray<uint8> ReturnBytes{TArray<uint8>(Response->GetContent().GetData(), Response->GetContentLength())};
 
-	Response.Reset();
-
 	BroadcastResult(ReturnBytes, EDownloadToMemoryResult::SuccessDownloading);
-
-	RemoveFromRoot();
 }

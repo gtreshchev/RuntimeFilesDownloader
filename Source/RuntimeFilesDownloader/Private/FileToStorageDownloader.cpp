@@ -63,7 +63,7 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 #if ENGINE_MAJOR_VERSION >= 5 || ENGINE_MINOR_VERSION >= 26
 	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest{FHttpModule::Get().CreateRequest()};
 #else
-	const TSharedRef<IHttpRequest> HttpRequest {FHttpModule::Get().CreateRequest()};
+	const TSharedRef<IHttpRequest> HttpRequest{FHttpModule::Get().CreateRequest()};
 #endif
 
 	HttpRequest->SetVerb("GET");
@@ -163,8 +163,7 @@ void UFileToStorageDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHtt
 	}
 
 	// Open / Create the file
-	IFileHandle* FileHandle = PlatformFile.OpenWrite(*FileSavePath);
-	if (FileHandle)
+	if (IFileHandle* FileHandle = PlatformFile.OpenWrite(*FileSavePath))
 	{
 		// Write the file
 		FileHandle->Write(Response->GetContent().GetData(), Response->GetContentLength());
@@ -172,13 +171,12 @@ void UFileToStorageDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHtt
 		// Close the file
 		delete FileHandle;
 
-		Response.Reset();
-
 		BroadcastResult(EDownloadToStorageResult::SuccessDownloading);
 	}
 	else
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Something went wrong while saving the file '%s'"), *FileSavePath);
+
 		BroadcastResult(EDownloadToStorageResult::SaveFailed);
 	}
 }

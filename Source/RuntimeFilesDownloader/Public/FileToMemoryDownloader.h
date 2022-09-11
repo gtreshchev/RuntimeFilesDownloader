@@ -4,7 +4,6 @@
 
 #include "Http.h"
 #include "BaseFilesDownloader.h"
-
 #include "FileToMemoryDownloader.generated.h"
 
 /**

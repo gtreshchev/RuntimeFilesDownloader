@@ -4,7 +4,6 @@
 
 #include "Http.h"
 #include "BaseFilesDownloader.h"
-
 #include "FileToStorageDownloader.generated.h"
 
 /** Possible results from a download request */

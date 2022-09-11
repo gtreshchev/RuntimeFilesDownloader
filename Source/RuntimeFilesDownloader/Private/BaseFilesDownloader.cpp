@@ -51,7 +51,7 @@ UTexture2D* UBaseFilesDownloader::BytesToTexture(const TArray<uint8>& Bytes)
 	return FImageUtils::ImportBufferAsTexture2D(Bytes);
 }
 
-bool UBaseFilesDownloader::LoadFileToArray(TArray<uint8>& Result, const FString& Filename)
+bool UBaseFilesDownloader::LoadFileToArray(const FString& Filename, TArray<uint8>& Result)
 {
 	return FFileHelper::LoadFileToArray(Result, *Filename);
 }
@@ -71,13 +71,18 @@ bool UBaseFilesDownloader::SaveStringToFile(const FString& String, const FString
 	return FFileHelper::SaveStringToFile(String, *Filename);
 }
 
+bool UBaseFilesDownloader::IsFileExist(const FString& FilePath)
+{
+	return FPaths::FileExists(FilePath);
+}
+
 void UBaseFilesDownloader::BroadcastProgress(const int32 BytesReceived, const int32 ContentLength) const
 {
 	if (OnDownloadProgressNative.IsBound())
 	{
 		OnDownloadProgressNative.Execute(BytesReceived, ContentLength);
 	}
-	
+
 	if (OnDownloadProgress.IsBound())
 	{
 		OnDownloadProgress.Execute(BytesReceived, ContentLength);
