@@ -14,7 +14,7 @@
   "IsBetaVersion": false,
   "IsExperimentalVersion": false,
   "Installed": true,
-  "EngineVersion": "5.0.0",
+  "EngineVersion": "5.1.0",
   "Modules": [
     {
       "Name": "RuntimeFilesDownloader",
