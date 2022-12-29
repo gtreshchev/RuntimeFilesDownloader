@@ -41,7 +41,7 @@ class RUNTIMEFILESDOWNLOADER_API UFileToStorageDownloader : public UBaseFilesDow
 
 public:
 	/**
-	 * Download the file and save it to the device disk. Recommended for Blueprints only
+	 * Download the file and save it to the device disk
 	 *
 	 * @param URL The file URL to be downloaded
 	 * @param SavePath The absolute path and file name to save the downloaded file
@@ -54,7 +54,7 @@ public:
 	static UFileToStorageDownloader* BP_DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToStorageDownloadComplete& OnComplete);
 
 	/**
-	 * Download the file and save it to the device disk. Recommended for C++ only
+	 * Download the file and save it to the device disk. Suitable for use in C++
 	 *
 	 * @param URL The file URL to be downloaded
 	 * @param SavePath The absolute path and file name to save the downloaded file
@@ -68,7 +68,7 @@ public:
 
 private:
 	/**
-	 * Download the file and save it to the device disk. Recommended for C++ only
+	 * Download the file and save it to the device disk
 	 *
 	 * @param URL The file URL to be downloaded
 	 * @param SavePath The absolute path and file name to save the downloaded file

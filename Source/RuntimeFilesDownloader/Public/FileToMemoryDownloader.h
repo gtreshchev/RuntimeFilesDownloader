@@ -39,7 +39,7 @@ class RUNTIMEFILESDOWNLOADER_API UFileToMemoryDownloader : public UBaseFilesDown
 
 public:
 	/**
-	 * Download the file and save it to the physical memory. Recommended for Blueprints only
+	 * Download the file and save it to the physical memory
 	 *
 	 * @param URL The file URL to be downloaded
 	 * @param Timeout Maximum waiting time in case of zero download progress, in seconds
@@ -49,11 +49,21 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "File To Memory Downloader|Main", meta = (DisplayName = "Download File To Memory"))
 	static void BP_DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToMemoryDownloadComplete& OnComplete);
+
+	/**
+	 * Download the file and save it to the physical memory. Suitable for use in C++
+	 *
+	 * @param URL The file URL to be downloaded
+	 * @param Timeout Maximum waiting time in case of zero download progress, in seconds
+	 * @param ContentType The specified string will be set to the header in the Content-Type field. Enter MIME to specify the download file type
+	 * @param OnProgress Delegate broadcast on download progress
+	 * @param OnComplete Delegate broadcast on download complete
+	 */
 	static void DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgressNative& OnProgress, const FOnFileToMemoryDownloadCompleteNative& OnComplete);
 
 private:
 	/**
-	 * Download the file and save it to the physical memory. Recommended for C++ only
+	 * Download the file and save it to the physical memory
 	 *
 	 * @param URL The file URL to be downloaded
 	 * @param Timeout Maximum waiting time in case of zero download progress, in seconds
