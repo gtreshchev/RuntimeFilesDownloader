@@ -1,4 +1,4 @@
-// Georgy Treshchev 2022.
+// Georgy Treshchev 2023.
 
 #include "FileToMemoryDownloader.h"
 #include "RuntimeFilesDownloaderDefines.h"
