@@ -24,50 +24,50 @@ DECLARE_DELEGATE_TwoParams(FOnFileToMemoryDownloadCompleteNative, const TArray<u
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnFileToMemoryDownloadComplete, const TArray<uint8>&, DownloadedContent, EDownloadToMemoryResult, Result);
 
 /**
- * Library for downloading files to memory. Downloads a file into RAM and outputs an array of bytes
+ * Library for downloading files to memory. Downloads a file into temporary memory (RAM) and outputs a byte array
  */
 UCLASS(BlueprintType, Category = "File To Memory Downloader")
 class RUNTIMEFILESDOWNLOADER_API UFileToMemoryDownloader : public UBaseFilesDownloader
 {
 	GENERATED_BODY()
 
-	/** Static delegate to track download completion */
+	/** Static delegate for monitoring the completion of the download */
 	FOnFileToMemoryDownloadCompleteNative OnDownloadCompleteNative;
 
-	/** Dynamic delegate to track download completion */
+	/** Dynamic delegate for monitoring the completion of the download */
 	FOnFileToMemoryDownloadComplete OnDownloadComplete;
 
 public:
 	/**
-	 * Download the file and save it to the physical memory
+	 * Download the file and save it as a byte array in temporary memory (RAM)
 	 *
-	 * @param URL The file URL to be downloaded
-	 * @param Timeout Maximum waiting time in case of zero download progress, in seconds
-	 * @param ContentType The specified string will be set to the header in the Content-Type field. Enter MIME to specify the download file type
-	 * @param OnProgress Delegate broadcast on download progress
-	 * @param OnComplete Delegate broadcast on download complete
+	 * @param URL The URL of the file to be downloaded
+	 * @param Timeout The maximum time to wait for the download to complete, in seconds. Works only for engine versions >= 4.26
+	 * @param ContentType A string to set in the Content-Type header field. Use a MIME type to specify the file type
+	 * @param OnProgress A delegate that will be called to broadcast the download progress
+	 * @param OnComplete Delegate for broadcasting the completion of the download
 	 */
-	UFUNCTION(BlueprintCallable, Category = "File To Memory Downloader|Main", meta = (DisplayName = "Download File To Memory"))
-	static void BP_DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToMemoryDownloadComplete& OnComplete);
+	UFUNCTION(BlueprintCallable, Category = "File To Memory Downloader|Main")
+	static void DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToMemoryDownloadComplete& OnComplete);
 
 	/**
-	 * Download the file and save it to the physical memory. Suitable for use in C++
+	 * Download the file and save it as a byte array in temporary memory (RAM). Suitable for use in C++
 	 *
-	 * @param URL The file URL to be downloaded
-	 * @param Timeout Maximum waiting time in case of zero download progress, in seconds
-	 * @param ContentType The specified string will be set to the header in the Content-Type field. Enter MIME to specify the download file type
-	 * @param OnProgress Delegate broadcast on download progress
-	 * @param OnComplete Delegate broadcast on download complete
+	 * @param URL The URL of the file to be downloaded
+	 * @param Timeout The maximum time to wait for the download to complete, in seconds. Works only for engine versions >= 4.26
+	 * @param ContentType A string to set in the Content-Type header field. Use a MIME type to specify the file type
+	 * @param OnProgress A delegate that will be called to broadcast the download progress
+	 * @param OnComplete A delegate that will be called to broadcast that the download is complete
 	 */
 	static void DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgressNative& OnProgress, const FOnFileToMemoryDownloadCompleteNative& OnComplete);
 
 private:
 	/**
-	 * Download the file and save it to the physical memory
+	 * Download the file and save it to the physical memory (RAM)
 	 *
-	 * @param URL The file URL to be downloaded
-	 * @param Timeout Maximum waiting time in case of zero download progress, in seconds
-	 * @param ContentType The specified string will be set to the header in the Content-Type field. Enter MIME to specify the download file type
+	 * @param URL The URL of the file to be downloaded
+	 * @param Timeout The maximum time to wait for the download to complete, in seconds. Works only for engine versions >= 4.26
+	 * @param ContentType A string to set in the Content-Type header field. Use a MIME type to specify the file type
 	 */
 	void DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType);
 
@@ -77,7 +77,7 @@ private:
 	void BroadcastResult(const TArray<uint8>& DownloadedContent, EDownloadToMemoryResult Result) const;
 
 	/**
-	 * File downloading finished internal callback
+	 * Internal callback for when file downloading has finished
 	 */
 	void OnComplete_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
 };

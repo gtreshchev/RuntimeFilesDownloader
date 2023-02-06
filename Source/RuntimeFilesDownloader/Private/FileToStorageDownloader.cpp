@@ -9,7 +9,7 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 
 
-UFileToStorageDownloader* UFileToStorageDownloader::BP_DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToStorageDownloadComplete& OnComplete)
+UFileToStorageDownloader* UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToStorageDownloadComplete& OnComplete)
 {
 	UFileToStorageDownloader* Downloader{NewObject<UFileToStorageDownloader>(StaticClass())};
 
@@ -55,6 +55,7 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 
 	if (Timeout < 0)
 	{
+		UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("The specified timeout (%f) is less than 0, setting it to 0"), Timeout);
 		Timeout = 0;
 	}
 
@@ -72,7 +73,7 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 #if ENGINE_MAJOR_VERSION >= 5 || ENGINE_MINOR_VERSION >= 26
 	HttpRequest->SetTimeout(Timeout);
 #else
-	UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("The functionality to set Timeout has been available since version 4.26. Please update the engine version for this support"));
+	UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("The Timeout feature is only supported in engine version 4.26 or later. Please update your engine to use this feature"));
 #endif
 
 	if (!ContentType.IsEmpty())
@@ -83,8 +84,12 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UFileToStorageDownloader::OnComplete_Internal);
 	HttpRequest->OnRequestProgress().BindUObject(this, &UBaseFilesDownloader::OnProgress_Internal);
 
-	// Process the request
-	HttpRequest->ProcessRequest();
+	if (!HttpRequest->ProcessRequest())
+	{
+		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to initiate the download: request processing error"));
+		BroadcastResult(EDownloadToStorageResult::DownloadFailed);
+		RemoveFromRoot();
+	}
 
 	HttpDownloadRequest = &HttpRequest.Get();
 }
@@ -118,29 +123,28 @@ void UFileToStorageDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHtt
 
 		if (!Response.IsValid())
 		{
-			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Response is not valid"));
+			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to complete the download: the response is not valid"));
 		}
 		else
 		{
 			if (!EHttpResponseCodes::IsOk(Response->GetResponseCode()))
 			{
-				UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Status code is not Ok"));
+				UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to complete the download: the status is '%d', must be within the range of 200-206"), Response->GetResponseCode());
 			}
 		}
 
 		if (!bWasSuccessful)
 		{
-			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Download failed"));
+			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to complete the download: was not successful"));
 		}
 
 		BroadcastResult(EDownloadToStorageResult::DownloadFailed);
-
 		return;
 	}
 
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
-	// Create save directory if not existent
+	// Create save directory if it does not exist
 	{
 		FString Path, Filename, Extension;
 		FPaths::Split(FileSavePath, Path, Filename, Extension);
@@ -156,27 +160,33 @@ void UFileToStorageDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHtt
 	}
 
 	// Delete the file if it already exists
-	if (!FileSavePath.IsEmpty() && FPaths::FileExists(*FileSavePath))
+	if (FPaths::FileExists(*FileSavePath))
 	{
 		IFileManager& FileManager = IFileManager::Get();
-		FileManager.Delete(*FileSavePath);
+		if (!FileManager.Delete(*FileSavePath))
+		{
+			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Something went wrong while deleting the existing file '%s'"), *FileSavePath);
+			BroadcastResult(EDownloadToStorageResult::SaveFailed);
+			return;
+		}
 	}
 
-	// Open / Create the file
 	if (IFileHandle* FileHandle = PlatformFile.OpenWrite(*FileSavePath))
 	{
-		// Write the file
-		FileHandle->Write(Response->GetContent().GetData(), Response->GetContentLength());
+		if (!FileHandle->Write(Response->GetContent().GetData(), Response->GetContentLength()))
+		{
+			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Something went wrong while writing the response data to the file '%s'"), *FileSavePath);
+			delete FileHandle;
+			BroadcastResult(EDownloadToStorageResult::SaveFailed);
+			return;
+		}
 
-		// Close the file
 		delete FileHandle;
-
 		BroadcastResult(EDownloadToStorageResult::SuccessDownloading);
 	}
 	else
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Something went wrong while saving the file '%s'"), *FileSavePath);
-
 		BroadcastResult(EDownloadToStorageResult::SaveFailed);
 	}
 }
