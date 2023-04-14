@@ -48,7 +48,7 @@ public:
 	 * @param OnComplete Delegate for broadcasting the completion of the download
 	 */
 	UFUNCTION(BlueprintCallable, Category = "File To Memory Downloader|Main")
-	static void DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToMemoryDownloadComplete& OnComplete);
+	static UFileToMemoryDownloader* DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToMemoryDownloadComplete& OnComplete);
 
 	/**
 	 * Download the file and save it as a byte array in temporary memory (RAM). Suitable for use in C++
@@ -59,7 +59,7 @@ public:
 	 * @param OnProgress A delegate that will be called to broadcast the download progress
 	 * @param OnComplete A delegate that will be called to broadcast that the download is complete
 	 */
-	static void DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgressNative& OnProgress, const FOnFileToMemoryDownloadCompleteNative& OnComplete);
+	static UFileToMemoryDownloader* DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgressNative& OnProgress, const FOnFileToMemoryDownloadCompleteNative& OnComplete);
 
 private:
 	/**

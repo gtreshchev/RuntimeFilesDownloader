@@ -43,6 +43,7 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You have not provided an URL to download the file"));
 		BroadcastResult(EDownloadToStorageResult::InvalidURL);
+		RemoveFromRoot();
 		return;
 	}
 
@@ -50,6 +51,7 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You have not provided a path to save the file"));
 		BroadcastResult(EDownloadToStorageResult::InvalidSavePath);
+		RemoveFromRoot();
 		return;
 	}
 
@@ -91,7 +93,7 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 		RemoveFromRoot();
 	}
 
-	HttpDownloadRequest = &HttpRequest.Get();
+	HttpDownloadRequestPtr = HttpRequest->AsWeak();
 }
 
 void UFileToStorageDownloader::BroadcastResult(EDownloadToStorageResult Result) const
@@ -100,22 +102,22 @@ void UFileToStorageDownloader::BroadcastResult(EDownloadToStorageResult Result) 
 	{
 		OnDownloadCompleteNative.Execute(Result);
 	}
-	else if (OnDownloadComplete.IsBound())
+
+	if (OnDownloadComplete.IsBound())
 	{
 		OnDownloadComplete.Execute(Result);
 	}
-	else
+
+	if (!OnDownloadCompleteNative.IsBound() && !OnDownloadComplete.IsBound())
 	{
-		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You did not bind to a delegate to get download result"));
+		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You have not bound any delegates to get the result of the download"));
 	}
 }
-
 
 void UFileToStorageDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
 {
 	RemoveFromRoot();
-
-	HttpDownloadRequest = nullptr;
+	HttpDownloadRequestPtr.Reset();
 
 	if (!Response.IsValid() || !EHttpResponseCodes::IsOk(Response->GetResponseCode()) || !bWasSuccessful)
 	{
@@ -171,22 +173,22 @@ void UFileToStorageDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHtt
 		}
 	}
 
-	if (IFileHandle* FileHandle = PlatformFile.OpenWrite(*FileSavePath))
-	{
-		if (!FileHandle->Write(Response->GetContent().GetData(), Response->GetContentLength()))
-		{
-			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Something went wrong while writing the response data to the file '%s'"), *FileSavePath);
-			delete FileHandle;
-			BroadcastResult(EDownloadToStorageResult::SaveFailed);
-			return;
-		}
-
-		delete FileHandle;
-		BroadcastResult(EDownloadToStorageResult::SuccessDownloading);
-	}
-	else
+	IFileHandle* FileHandle = PlatformFile.OpenWrite(*FileSavePath);
+	if (!FileHandle)
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Something went wrong while saving the file '%s'"), *FileSavePath);
 		BroadcastResult(EDownloadToStorageResult::SaveFailed);
+		return;
 	}
+
+	if (!FileHandle->Write(Response->GetContent().GetData(), Response->GetContentLength()))
+	{
+		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Something went wrong while writing the response data to the file '%s'"), *FileSavePath);
+		delete FileHandle;
+		BroadcastResult(EDownloadToStorageResult::SaveFailed);
+		return;
+	}
+
+	delete FileHandle;
+	BroadcastResult(EDownloadToStorageResult::SuccessDownloading);
 }

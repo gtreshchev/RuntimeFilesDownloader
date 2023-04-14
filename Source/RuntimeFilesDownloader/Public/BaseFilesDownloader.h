@@ -115,7 +115,7 @@ public:
 
 protected:
 	/** Http download request */
-	IHttpRequest* HttpDownloadRequest;
+	TWeakPtr<IHttpRequest> HttpDownloadRequestPtr;
 
 	/**
 	 * Broadcast the progress both multi-cast and single-cast delegates

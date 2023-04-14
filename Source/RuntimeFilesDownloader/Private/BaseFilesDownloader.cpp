@@ -9,40 +9,35 @@
 
 bool UBaseFilesDownloader::CancelDownload()
 {
-	if (!HttpDownloadRequest)
+	if (!HttpDownloadRequestPtr.IsValid())
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Unable to cancel download due to missing request"));
 		return false;
 	}
 
-	if (HttpDownloadRequest->GetStatus() != EHttpRequestStatus::Processing)
+	TSharedPtr<IHttpRequest> HttpRequest = HttpDownloadRequestPtr.Pin();
+	if (HttpRequest->GetStatus() != EHttpRequestStatus::Processing)
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Unable to cancel download because download is not in progress"));
 		return false;
 	}
 
-	HttpDownloadRequest->CancelRequest();
-
+	HttpRequest->CancelRequest();
+	HttpDownloadRequestPtr.Reset();
 	RemoveFromRoot();
-
-	HttpDownloadRequest = nullptr;
-
 	return true;
 }
 
 FString UBaseFilesDownloader::BytesToString(const TArray<uint8>& Bytes)
 {
 	const uint8* BytesData = Bytes.GetData();
-
 	FString Result;
-
 	for (int32 Count = Bytes.Num(); Count > 0; --Count)
 	{
 		Result += static_cast<TCHAR>(*BytesData);
 
 		++BytesData;
 	}
-
 	return Result;
 }
 
@@ -99,6 +94,6 @@ void UBaseFilesDownloader::OnProgress_Internal(FHttpRequestPtr Request, int32 By
 		return;
 	}
 
-	const int32 FullSize{Response->GetContentLength()};
+	const int32 FullSize = Response->GetContentLength();
 	BroadcastProgress(BytesReceived, FullSize);
 }
