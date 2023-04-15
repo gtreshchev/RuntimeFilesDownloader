@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Http.h"
+#include "Templates/SharedPointer.h"
 #include "BaseFilesDownloader.generated.h"
 
 /** Dynamic delegate to track download progress */

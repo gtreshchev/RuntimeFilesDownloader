@@ -99,7 +99,7 @@ void UFileToMemoryDownloader::DownloadFileToMemory(const FString& URL, float Tim
 		return;
 	}
 
-	HttpDownloadRequestPtr = HttpRequest->AsWeak();
+	HttpDownloadRequestPtr = HttpRequest;
 }
 
 void UFileToMemoryDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)

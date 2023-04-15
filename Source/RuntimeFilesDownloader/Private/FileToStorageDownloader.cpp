@@ -93,7 +93,7 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 		RemoveFromRoot();
 	}
 
-	HttpDownloadRequestPtr = HttpRequest->AsWeak();
+	HttpDownloadRequestPtr = HttpRequest;
 }
 
 void UFileToStorageDownloader::BroadcastResult(EDownloadToStorageResult Result) const
