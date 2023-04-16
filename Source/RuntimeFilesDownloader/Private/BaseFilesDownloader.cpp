@@ -6,6 +6,7 @@
 #include "Containers/UnrealString.h"
 #include "ImageUtils.h"
 #include "Misc/FileHelper.h"
+#include "Launch/Resources/Version.h"
 
 bool UBaseFilesDownloader::CancelDownload()
 {
@@ -15,7 +16,12 @@ bool UBaseFilesDownloader::CancelDownload()
 		return false;
 	}
 
+#if ENGINE_MAJOR_VERSION >= 5 || ENGINE_MINOR_VERSION >= 26
+	TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpDownloadRequestPtr.Pin();
+#else
 	TSharedPtr<IHttpRequest> HttpRequest = HttpDownloadRequestPtr.Pin();
+#endif
+
 	if (HttpRequest->GetStatus() != EHttpRequestStatus::Processing)
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Unable to cancel download because download is not in progress"));

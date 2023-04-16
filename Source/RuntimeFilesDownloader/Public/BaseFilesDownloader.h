@@ -4,6 +4,7 @@
 
 #include "Http.h"
 #include "Templates/SharedPointer.h"
+#include "Launch/Resources/Version.h"
 #include "BaseFilesDownloader.generated.h"
 
 /** Dynamic delegate to track download progress */
@@ -116,7 +117,11 @@ public:
 
 protected:
 	/** Http download request */
+#if ENGINE_MAJOR_VERSION >= 5 || ENGINE_MINOR_VERSION >= 26
+	TWeakPtr<IHttpRequest, ESPMode::ThreadSafe> HttpDownloadRequestPtr;
+#else
 	TWeakPtr<IHttpRequest> HttpDownloadRequestPtr;
+#endif
 
 	/**
 	 * Broadcast the progress both multi-cast and single-cast delegates
