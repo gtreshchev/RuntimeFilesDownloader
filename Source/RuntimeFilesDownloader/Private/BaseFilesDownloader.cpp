@@ -34,6 +34,45 @@ bool UBaseFilesDownloader::CancelDownload()
 	return true;
 }
 
+void UBaseFilesDownloader::GetContentSize(const FString& URL, float Timeout, const FOnGetDownloadContentLength& OnComplete)
+{
+	GetContentSize(URL, Timeout, FOnGetDownloadContentLengthNative::CreateLambda([OnComplete](const int32 ContentLength)
+	{
+		OnComplete.ExecuteIfBound(ContentLength);
+	}));
+}
+
+void UBaseFilesDownloader::GetContentSize(const FString& URL, float Timeout, const FOnGetDownloadContentLengthNative& OnComplete)
+{
+#if ENGINE_MAJOR_VERSION >= 5 || ENGINE_MINOR_VERSION >= 26
+	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest{FHttpModule::Get().CreateRequest()};
+#else
+	const TSharedRef<IHttpRequest> HttpRequest{FHttpModule::Get().CreateRequest()};
+#endif
+
+	HttpRequest->SetVerb("HEAD");
+	HttpRequest->SetURL(URL);
+
+#if ENGINE_MAJOR_VERSION >= 5 || ENGINE_MINOR_VERSION >= 26
+	HttpRequest->SetTimeout(Timeout);
+#else
+	UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("The Timeout feature is only supported in engine version 4.26 or later. Please update your engine to use this feature"));
+#endif
+
+	HttpRequest->OnProcessRequestComplete().BindLambda([OnComplete](const FHttpRequestPtr& HttpRequest, const FHttpResponsePtr& HttpResponse, const bool bSucceeded)
+	{
+		if (HttpResponse->GetContentLength() <= 0)
+		{
+			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to initiate the download: request processing error"));
+			OnComplete.ExecuteIfBound(0);
+			return;
+		}
+
+		const int32 ContentLength = HttpResponse->GetContentLength();
+		OnComplete.ExecuteIfBound(ContentLength);
+	});
+}
+
 FString UBaseFilesDownloader::BytesToString(const TArray<uint8>& Bytes)
 {
 	const uint8* BytesData = Bytes.GetData();
@@ -77,7 +116,7 @@ bool UBaseFilesDownloader::IsFileExist(const FString& FilePath)
 	return FPaths::FileExists(FilePath);
 }
 
-void UBaseFilesDownloader::BroadcastProgress(const int32 BytesReceived, const int32 ContentLength) const
+void UBaseFilesDownloader::BroadcastProgress(int32 BytesReceived, int32 ContentLength) const
 {
 	if (OnDownloadProgressNative.IsBound())
 	{
@@ -100,6 +139,11 @@ void UBaseFilesDownloader::OnProgress_Internal(FHttpRequestPtr Request, int32 By
 		return;
 	}
 
-	const int32 FullSize = Response->GetContentLength();
-	BroadcastProgress(BytesReceived, FullSize);
+	int32 ContentLength = Response->GetContentLength();
+	if (ContentLength <= 0)
+	{
+		ContentLength = EstimatedContentLength;
+	}
+
+	BroadcastProgress(BytesReceived, ContentLength);
 }

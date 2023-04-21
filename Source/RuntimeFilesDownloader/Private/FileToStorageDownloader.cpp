@@ -11,16 +11,13 @@
 
 UFileToStorageDownloader* UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToStorageDownloadComplete& OnComplete)
 {
-	UFileToStorageDownloader* Downloader{NewObject<UFileToStorageDownloader>(StaticClass())};
-
-	Downloader->AddToRoot();
-
-	Downloader->OnDownloadProgress = OnProgress;
-	Downloader->OnDownloadComplete = OnComplete;
-
-	Downloader->DownloadFileToStorage(URL, SavePath, Timeout, ContentType);
-
-	return Downloader;
+	return DownloadFileToStorage(URL, SavePath, Timeout, ContentType, FOnDownloadProgressNative::CreateLambda([OnProgress](int32 BytesReceived, int32 ContentLength)
+	{
+		OnProgress.ExecuteIfBound(BytesReceived, ContentLength);
+	}), FOnFileToStorageDownloadCompleteNative::CreateLambda([OnComplete](EDownloadToStorageResult Result)
+	{
+		OnComplete.ExecuteIfBound(Result);
+	}));
 }
 
 UFileToStorageDownloader* UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, const FOnDownloadProgressNative& OnProgress, const FOnFileToStorageDownloadCompleteNative& OnComplete)
@@ -32,7 +29,11 @@ UFileToStorageDownloader* UFileToStorageDownloader::DownloadFileToStorage(const 
 	Downloader->OnDownloadProgressNative = OnProgress;
 	Downloader->OnDownloadCompleteNative = OnComplete;
 
-	Downloader->DownloadFileToStorage(URL, SavePath, Timeout, ContentType);
+	GetContentSize(URL, Timeout, FOnGetDownloadContentLengthNative::CreateWeakLambda(Downloader, [Downloader, URL, SavePath, Timeout, ContentType](int32 InContentLength)
+	{
+		Downloader->EstimatedContentLength = InContentLength;
+		Downloader->DownloadFileToStorage(URL, SavePath, Timeout, ContentType);
+	}));
 
 	return Downloader;
 }

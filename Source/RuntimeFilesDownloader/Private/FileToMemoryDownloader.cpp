@@ -8,16 +8,13 @@
 
 UFileToMemoryDownloader* UFileToMemoryDownloader::DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToMemoryDownloadComplete& OnComplete)
 {
-	UFileToMemoryDownloader* Downloader = NewObject<UFileToMemoryDownloader>(StaticClass());
-
-	Downloader->AddToRoot();
-
-	Downloader->OnDownloadProgress = OnProgress;
-	Downloader->OnDownloadComplete = OnComplete;
-
-	Downloader->DownloadFileToMemory(URL, Timeout, ContentType);
-
-	return Downloader;
+	return DownloadFileToMemory(URL, Timeout, ContentType, FOnDownloadProgressNative::CreateLambda([OnProgress](int32 BytesReceived, int32 ContentLength)
+	{
+		OnProgress.ExecuteIfBound(BytesReceived, ContentLength);
+	}), FOnFileToMemoryDownloadCompleteNative::CreateLambda([OnComplete](const TArray<uint8>& DownloadedContent, EDownloadToMemoryResult Result)
+	{
+		OnComplete.ExecuteIfBound(DownloadedContent, Result);
+	}));
 }
 
 UFileToMemoryDownloader* UFileToMemoryDownloader::DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgressNative& OnProgress, const FOnFileToMemoryDownloadCompleteNative& OnComplete)
@@ -28,8 +25,12 @@ UFileToMemoryDownloader* UFileToMemoryDownloader::DownloadFileToMemory(const FSt
 
 	Downloader->OnDownloadProgressNative = OnProgress;
 	Downloader->OnDownloadCompleteNative = OnComplete;
-
-	Downloader->DownloadFileToMemory(URL, Timeout, ContentType);
+	
+	GetContentSize(URL, Timeout, FOnGetDownloadContentLengthNative::CreateWeakLambda(Downloader, [Downloader, URL, Timeout, ContentType](int32 InContentLength)
+	{
+		Downloader->EstimatedContentLength = InContentLength;
+		Downloader->DownloadFileToMemory(URL, Timeout, ContentType);
+	}));
 
 	return Downloader;
 }

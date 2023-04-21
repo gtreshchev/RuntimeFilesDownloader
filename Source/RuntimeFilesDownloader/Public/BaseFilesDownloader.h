@@ -13,6 +13,12 @@ DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnDownloadProgress, int32, BytesReceived, in
 /** Static delegate to track download progress */
 DECLARE_DELEGATE_TwoParams(FOnDownloadProgressNative, int32, int32);
 
+/** Dynamic delegate to obtain download content length */
+DECLARE_DYNAMIC_DELEGATE_OneParam(FOnGetDownloadContentLength, int32, ContentLength);
+
+/** Static delegate to obtain download content length */
+DECLARE_DELEGATE_OneParam(FOnGetDownloadContentLengthNative, int32);
+
 class UTexture2D;
 
 /**
@@ -24,7 +30,6 @@ class RUNTIMEFILESDOWNLOADER_API UBaseFilesDownloader : public UObject
 	GENERATED_BODY()
 
 protected:
-
 	/** Static delegate to track download progress */
 	FOnDownloadProgressNative OnDownloadProgressNative;
 
@@ -44,6 +49,25 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader|Main")
 	bool CancelDownload();
+
+	/**
+	 * Get the content length of the file to be downloaded
+	 *
+	 * @param URL The URL of the file to be downloaded
+	 * @param Timeout The maximum time to wait for the download to complete, in seconds. Works only for engine versions >= 4.26
+	 * @param OnComplete Delegate for broadcasting the completion of the download 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader|Main")
+	static void GetContentSize(const FString& URL, float Timeout, const FOnGetDownloadContentLength& OnComplete);
+
+	/**
+	 * Get the content length of the file to be downloaded. Suitable for use in C++
+	 *
+	 * @param URL The URL of the file to be downloaded
+	 * @param Timeout The maximum time to wait for the download to complete, in seconds. Works only for engine versions >= 4.26
+	 * @param OnComplete Delegate for broadcasting the completion of the download 
+	 */
+	static void GetContentSize(const FString& URL, float Timeout, const FOnGetDownloadContentLengthNative& OnComplete);
 
 	/**
 	 * Convert bytes to string
@@ -114,7 +138,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader|Utilities")
 	static bool IsFileExist(const FString& FilePath);
 
-
 protected:
 	/** Http download request */
 #if ENGINE_MAJOR_VERSION >= 5 || ENGINE_MINOR_VERSION >= 26
@@ -123,9 +146,12 @@ protected:
 	TWeakPtr<IHttpRequest> HttpDownloadRequestPtr;
 #endif
 
+	/** Estimated content length, in bytes. Needed for tracking download progress */
+	int32 EstimatedContentLength;
+
 	/**
 	 * Broadcast the progress both multi-cast and single-cast delegates
 	 * @note To get the download percentage, divide the BytesReceived value by the ContentLength
 	 */
-	void BroadcastProgress(const int32 BytesReceived, const int32 ContentLength) const;
+	void BroadcastProgress(int32 BytesReceived, int32 ContentLength) const;
 };
