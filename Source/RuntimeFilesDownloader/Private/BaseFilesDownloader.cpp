@@ -36,7 +36,7 @@ bool UBaseFilesDownloader::CancelDownload()
 
 void UBaseFilesDownloader::GetContentSize(const FString& URL, float Timeout, const FOnGetDownloadContentLength& OnComplete)
 {
-	GetContentSize(URL, Timeout, FOnGetDownloadContentLengthNative::CreateLambda([OnComplete](const int32 ContentLength)
+	GetContentSize(URL, Timeout, FOnGetDownloadContentLengthNative::CreateLambda([OnComplete](int32 ContentLength)
 	{
 		OnComplete.ExecuteIfBound(ContentLength);
 	}));
@@ -61,9 +61,9 @@ void UBaseFilesDownloader::GetContentSize(const FString& URL, float Timeout, con
 
 	HttpRequest->OnProcessRequestComplete().BindLambda([OnComplete](const FHttpRequestPtr& HttpRequest, const FHttpResponsePtr& HttpResponse, const bool bSucceeded)
 	{
-		if (HttpResponse->GetContentLength() <= 0)
+		if (!HttpResponse.IsValid() || HttpResponse->GetContentLength() <= 0)
 		{
-			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to initiate the download: request processing error"));
+			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to get content size: content length is 0"));
 			OnComplete.ExecuteIfBound(0);
 			return;
 		}
@@ -71,6 +71,12 @@ void UBaseFilesDownloader::GetContentSize(const FString& URL, float Timeout, con
 		const int32 ContentLength = HttpResponse->GetContentLength();
 		OnComplete.ExecuteIfBound(ContentLength);
 	});
+
+	if (!HttpRequest->ProcessRequest())
+	{
+		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to get content size: request processing error"));
+		OnComplete.ExecuteIfBound(0);
+	}
 }
 
 FString UBaseFilesDownloader::BytesToString(const TArray<uint8>& Bytes)

@@ -26,9 +26,9 @@ UFileToMemoryDownloader* UFileToMemoryDownloader::DownloadFileToMemory(const FSt
 	Downloader->OnDownloadProgressNative = OnProgress;
 	Downloader->OnDownloadCompleteNative = OnComplete;
 	
-	GetContentSize(URL, Timeout, FOnGetDownloadContentLengthNative::CreateWeakLambda(Downloader, [Downloader, URL, Timeout, ContentType](int32 InContentLength)
+	GetContentSize(URL, Timeout, FOnGetDownloadContentLengthNative::CreateWeakLambda(Downloader, [Downloader, URL, Timeout, ContentType](int32 ContentLength)
 	{
-		Downloader->EstimatedContentLength = InContentLength;
+		Downloader->EstimatedContentLength = ContentLength;
 		Downloader->DownloadFileToMemory(URL, Timeout, ContentType);
 	}));
 
