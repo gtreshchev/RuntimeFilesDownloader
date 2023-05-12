@@ -7,6 +7,7 @@
 #include "ImageUtils.h"
 #include "Misc/FileHelper.h"
 #include "Launch/Resources/Version.h"
+#include "Misc/Paths.h"
 
 bool UBaseFilesDownloader::CancelDownload()
 {
