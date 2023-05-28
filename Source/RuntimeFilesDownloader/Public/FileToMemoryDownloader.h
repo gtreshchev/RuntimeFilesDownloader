@@ -18,7 +18,7 @@ enum class EDownloadToMemoryResult : uint8
 };
 
 /** Static delegate to track download completion */
-DECLARE_DELEGATE_TwoParams(FOnFileToMemoryDownloadCompleteNative, const TArray<uint8>&, EDownloadToMemoryResult);
+DECLARE_DELEGATE_TwoParams(FOnFileToMemoryDownloadCompleteNative, const TArray64<uint8>&, EDownloadToMemoryResult);
 
 /** Dynamic delegate to track download completion */
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnFileToMemoryDownloadComplete, const TArray<uint8>&, DownloadedContent, EDownloadToMemoryResult, Result);
@@ -61,7 +61,11 @@ public:
 	 */
 	static UFileToMemoryDownloader* DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgressNative& OnProgress, const FOnFileToMemoryDownloadCompleteNative& OnComplete);
 
-private:
+	//~ Begin UBaseFilesDownloader Interface
+	virtual bool CancelDownload() override;
+	//~ End UBaseFilesDownloader Interface
+
+protected:
 	/**
 	 * Download the file and save it to the physical memory (RAM)
 	 *
@@ -74,10 +78,14 @@ private:
 	/**
 	 * Broadcast the download result
 	 */
-	void BroadcastResult(const TArray<uint8>& DownloadedContent, EDownloadToMemoryResult Result) const;
+	void BroadcastResult(const TArray64<uint8>& DownloadedContent, EDownloadToMemoryResult Result) const;
 
 	/**
 	 * Internal callback for when file downloading has finished
 	 */
-	void OnComplete_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
+	void OnComplete_Internal(TArray64<uint8> DownloadedContent);
+
+protected:
+	/** Internal downloader */
+	TSharedPtr<class FRuntimeChunkDownloader> RuntimeChunkDownloaderPtr;
 };

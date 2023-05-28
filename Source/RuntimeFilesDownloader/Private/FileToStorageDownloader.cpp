@@ -1,19 +1,20 @@
 // Georgy Treshchev 2023.
 
 #include "FileToStorageDownloader.h"
-#include "RuntimeFilesDownloaderDefines.h"
 
+#include "Editor.h"
+#include "RuntimeChunkDownloader.h"
+#include "RuntimeFilesDownloaderDefines.h"
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 
-
 UFileToStorageDownloader* UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToStorageDownloadComplete& OnComplete)
 {
-	return DownloadFileToStorage(URL, SavePath, Timeout, ContentType, FOnDownloadProgressNative::CreateLambda([OnProgress](int32 BytesReceived, int32 ContentLength)
+	return DownloadFileToStorage(URL, SavePath, Timeout, ContentType, FOnDownloadProgressNative::CreateLambda([OnProgress](int64 BytesReceived, int64 ContentLength, float ProgressRatio)
 	{
-		OnProgress.ExecuteIfBound(BytesReceived, ContentLength);
+		OnProgress.ExecuteIfBound(BytesReceived, ContentLength, ProgressRatio);
 	}), FOnFileToStorageDownloadCompleteNative::CreateLambda([OnComplete](EDownloadToStorageResult Result)
 	{
 		OnComplete.ExecuteIfBound(Result);
@@ -23,19 +24,21 @@ UFileToStorageDownloader* UFileToStorageDownloader::DownloadFileToStorage(const 
 UFileToStorageDownloader* UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, const FOnDownloadProgressNative& OnProgress, const FOnFileToStorageDownloadCompleteNative& OnComplete)
 {
 	UFileToStorageDownloader* Downloader{NewObject<UFileToStorageDownloader>(StaticClass())};
-
 	Downloader->AddToRoot();
-
 	Downloader->OnDownloadProgressNative = OnProgress;
 	Downloader->OnDownloadCompleteNative = OnComplete;
-
-	GetContentSize(URL, Timeout, FOnGetDownloadContentLengthNative::CreateWeakLambda(Downloader, [Downloader, URL, SavePath, Timeout, ContentType](int32 InContentLength)
-	{
-		Downloader->EstimatedContentLength = InContentLength;
-		Downloader->DownloadFileToStorage(URL, SavePath, Timeout, ContentType);
-	}));
-
+	Downloader->DownloadFileToStorage(URL, SavePath, Timeout, ContentType);
 	return Downloader;
+}
+
+bool UFileToStorageDownloader::CancelDownload()
+{
+	if (RuntimeChunkDownloaderPtr.IsValid())
+	{
+		RuntimeChunkDownloaderPtr->CancelDownload();
+		return true;
+	}
+	return false;
 }
 
 void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType)
@@ -64,37 +67,14 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 
 	FileSavePath = SavePath;
 
-#if ENGINE_MAJOR_VERSION >= 5 || ENGINE_MINOR_VERSION >= 26
-	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest{FHttpModule::Get().CreateRequest()};
-#else
-	const TSharedRef<IHttpRequest> HttpRequest{FHttpModule::Get().CreateRequest()};
-#endif
-
-	HttpRequest->SetVerb("GET");
-	HttpRequest->SetURL(URL);
-
-#if ENGINE_MAJOR_VERSION >= 5 || ENGINE_MINOR_VERSION >= 26
-	HttpRequest->SetTimeout(Timeout);
-#else
-	UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("The Timeout feature is only supported in engine version 4.26 or later. Please update your engine to use this feature"));
-#endif
-
-	if (!ContentType.IsEmpty())
+	RuntimeChunkDownloaderPtr = MakeShared<FRuntimeChunkDownloader>();
+	RuntimeChunkDownloaderPtr->DownloadFile(URL, Timeout, ContentType, [this](int64 BytesReceived, int64 ContentLength)
 	{
-		HttpRequest->SetHeader(TEXT("Content-Type"), ContentType);
-	}
-
-	HttpRequest->OnProcessRequestComplete().BindUObject(this, &UFileToStorageDownloader::OnComplete_Internal);
-	HttpRequest->OnRequestProgress().BindUObject(this, &UBaseFilesDownloader::OnProgress_Internal);
-
-	if (!HttpRequest->ProcessRequest())
+		BroadcastProgress(BytesReceived, ContentLength, static_cast<float>(BytesReceived) / ContentLength);
+	}).Next([this](TArray64<uint8> DownloadedContent) mutable
 	{
-		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to initiate the download: request processing error"));
-		BroadcastResult(EDownloadToStorageResult::DownloadFailed);
-		RemoveFromRoot();
-	}
-
-	HttpDownloadRequestPtr = HttpRequest;
+		OnComplete_Internal(MoveTemp(DownloadedContent));
+	});
 }
 
 void UFileToStorageDownloader::BroadcastResult(EDownloadToStorageResult Result) const
@@ -115,32 +95,13 @@ void UFileToStorageDownloader::BroadcastResult(EDownloadToStorageResult Result) 
 	}
 }
 
-void UFileToStorageDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful)
+void UFileToStorageDownloader::OnComplete_Internal(TArray64<uint8> DownloadedContent)
 {
 	RemoveFromRoot();
-	HttpDownloadRequestPtr.Reset();
 
-	if (!Response.IsValid() || !EHttpResponseCodes::IsOk(Response->GetResponseCode()) || !bWasSuccessful)
+	if (!DownloadedContent.IsValidIndex(0))
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("An error occurred while downloading the file to storage"));
-
-		if (!Response.IsValid())
-		{
-			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to complete the download: the response is not valid"));
-		}
-		else
-		{
-			if (!EHttpResponseCodes::IsOk(Response->GetResponseCode()))
-			{
-				UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to complete the download: the status is '%d', must be within the range of 200-206"), Response->GetResponseCode());
-			}
-		}
-
-		if (!bWasSuccessful)
-		{
-			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to complete the download: was not successful"));
-		}
-
 		BroadcastResult(EDownloadToStorageResult::DownloadFailed);
 		return;
 	}
@@ -182,7 +143,7 @@ void UFileToStorageDownloader::OnComplete_Internal(FHttpRequestPtr Request, FHtt
 		return;
 	}
 
-	if (!FileHandle->Write(Response->GetContent().GetData(), Response->GetContentLength()))
+	if (!FileHandle->Write(DownloadedContent.GetData(), DownloadedContent.Num()))
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Something went wrong while writing the response data to the file '%s'"), *FileSavePath);
 		delete FileHandle;

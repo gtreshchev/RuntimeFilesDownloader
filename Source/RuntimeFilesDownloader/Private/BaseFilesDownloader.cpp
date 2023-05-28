@@ -2,42 +2,32 @@
 
 #include "BaseFilesDownloader.h"
 #include "RuntimeFilesDownloaderDefines.h"
-
 #include "Containers/UnrealString.h"
 #include "ImageUtils.h"
+#include "Engine/World.h"
 #include "Misc/FileHelper.h"
 #include "Launch/Resources/Version.h"
 #include "Misc/Paths.h"
 
+UBaseFilesDownloader::UBaseFilesDownloader()
+{
+	FWorldDelegates::OnWorldCleanup.AddWeakLambda(this, [this](UWorld* World, bool bSessionEnded, bool bCleanupResources)
+	{
+		if (bSessionEnded)
+		{
+			CancelDownload();
+		}
+	});
+}
+
 bool UBaseFilesDownloader::CancelDownload()
 {
-	if (!HttpDownloadRequestPtr.IsValid())
-	{
-		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Unable to cancel download due to missing request"));
-		return false;
-	}
-
-#if ENGINE_MAJOR_VERSION >= 5 || ENGINE_MINOR_VERSION >= 26
-	TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpDownloadRequestPtr.Pin();
-#else
-	TSharedPtr<IHttpRequest> HttpRequest = HttpDownloadRequestPtr.Pin();
-#endif
-
-	if (HttpRequest->GetStatus() != EHttpRequestStatus::Processing)
-	{
-		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Unable to cancel download because download is not in progress"));
-		return false;
-	}
-
-	HttpRequest->CancelRequest();
-	HttpDownloadRequestPtr.Reset();
-	RemoveFromRoot();
 	return true;
 }
 
 void UBaseFilesDownloader::GetContentSize(const FString& URL, float Timeout, const FOnGetDownloadContentLength& OnComplete)
 {
-	GetContentSize(URL, Timeout, FOnGetDownloadContentLengthNative::CreateLambda([OnComplete](int32 ContentLength)
+	GetContentSize(URL, Timeout, FOnGetDownloadContentLengthNative::CreateLambda([OnComplete](int64 ContentLength)
 	{
 		OnComplete.ExecuteIfBound(ContentLength);
 	}));
@@ -123,34 +113,15 @@ bool UBaseFilesDownloader::IsFileExist(const FString& FilePath)
 	return FPaths::FileExists(FilePath);
 }
 
-void UBaseFilesDownloader::BroadcastProgress(int32 BytesReceived, int32 ContentLength) const
+void UBaseFilesDownloader::BroadcastProgress(int64 BytesReceived, int64 ContentLength, float ProgressRatio) const
 {
 	if (OnDownloadProgressNative.IsBound())
 	{
-		OnDownloadProgressNative.Execute(BytesReceived, ContentLength);
+		OnDownloadProgressNative.Execute(BytesReceived, ContentLength, ProgressRatio);
 	}
 
 	if (OnDownloadProgress.IsBound())
 	{
-		OnDownloadProgress.Execute(BytesReceived, ContentLength);
+		OnDownloadProgress.Execute(BytesReceived, ContentLength, ProgressRatio);
 	}
-}
-
-void UBaseFilesDownloader::OnProgress_Internal(FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived) const
-{
-	const FHttpResponsePtr Response{Request->GetResponse()};
-
-	if (!Response.IsValid())
-	{
-		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Unable to report download progress because response is invalid"));
-		return;
-	}
-
-	int32 ContentLength = Response->GetContentLength();
-	if (ContentLength <= 0)
-	{
-		ContentLength = EstimatedContentLength;
-	}
-
-	BroadcastProgress(BytesReceived, ContentLength);
 }

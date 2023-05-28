@@ -65,7 +65,11 @@ public:
 	 */
 	static UFileToStorageDownloader* DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, const FOnDownloadProgressNative& OnProgress, const FOnFileToStorageDownloadCompleteNative& OnComplete);
 
-private:
+	//~ Begin UBaseFilesDownloader Interface
+	virtual bool CancelDownload() override;
+	//~ End UBaseFilesDownloader Interface
+
+protected:
 	/**
 	 * Download the file and save it to the device disk
 	 *
@@ -76,9 +80,6 @@ private:
 	 */
 	void DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType);
 
-	/** The destination path to save the downloaded file */
-	FString FileSavePath;
-
 	/**
 	 * Broadcast the download result
 	 */
@@ -87,5 +88,12 @@ private:
 	/**
 	 * Internal callback for when file downloading has finished
 	 */
-	void OnComplete_Internal(FHttpRequestPtr Request, FHttpResponsePtr Response, bool bWasSuccessful);
+	void OnComplete_Internal(TArray64<uint8> DownloadedContent);
+
+protected:
+	/** The destination path to save the downloaded file */
+	FString FileSavePath;
+
+	/** Internal downloader */
+	TSharedPtr<class FRuntimeChunkDownloader> RuntimeChunkDownloaderPtr;
 };
