@@ -2,7 +2,6 @@
 
 #include "FileToStorageDownloader.h"
 
-#include "Editor.h"
 #include "RuntimeChunkDownloader.h"
 #include "RuntimeFilesDownloaderDefines.h"
 #include "Misc/Paths.h"
