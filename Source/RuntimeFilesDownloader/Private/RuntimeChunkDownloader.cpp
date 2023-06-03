@@ -180,7 +180,12 @@ TFuture<TArray64<uint8>> FRuntimeChunkDownloader::DownloadFileByChunk(const FStr
 		}
 	});
 
-	HttpRequestRef->ProcessRequest();
+	if (!HttpRequestRef->ProcessRequest())
+	{
+		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: request failed"), *URL);
+		return MakeFulfilledPromise<TArray64<uint8>>(TArray64<uint8>()).GetFuture();
+	}
+
 	HttpRequestPtr = HttpRequestRef;
 	return PromisePtr->GetFuture();
 }
