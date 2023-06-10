@@ -21,14 +21,14 @@ TFuture<TArray64<uint8>> FRuntimeChunkDownloader::DownloadFile(const FString& UR
 		TSharedPtr<FRuntimeChunkDownloader> SharedThis = WeakThisPtr.Pin();
 		if (!SharedThis.IsValid())
 		{
-			UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Failed to download language model: downloader has been destroyed"));
+			UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Failed to download file: downloader has been destroyed"));
 			PromisePtr->SetValue(TArray64<uint8>());
 			return;
 		}
 
 		if (ContentLength <= 0)
 		{
-			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download language model: content length is 0"));
+			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file: content length is <= 0"));
 			PromisePtr->SetValue(TArray64<uint8>());
 			return;
 		}
@@ -203,7 +203,7 @@ void FRuntimeChunkDownloader::CancelDownload()
 
 		HttpRequest->CancelRequest();
 	}
-	UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Language model download canceled"));
+	UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Download canceled"));
 }
 
 TFuture<int64> FRuntimeChunkDownloader::GetContentSize(const FString& URL, float Timeout)
