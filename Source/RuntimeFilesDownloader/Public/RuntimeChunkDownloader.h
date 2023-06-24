@@ -7,7 +7,7 @@
 #include "Templates/SharedPointer.h"
 #include "Async/Future.h"
 
-#if !(ENGINE_MAJOR_VERSION == 5 && ENGINE_MINOR_VERSION > 0)
+#if UE_VERSION_OLDER_THAN(5, 1, 0)
 template <typename InIntType>
 struct TIntVector2
 {
@@ -93,7 +93,7 @@ public:
 
 protected:
 	/** A weak pointer to the HTTP request being used for the download */
-#if ENGINE_MAJOR_VERSION >= 5 || ENGINE_MINOR_VERSION >= 26
+#if UE_VERSION_NEWER_THAN(4, 25, 0)
 	TWeakPtr<IHttpRequest, ESPMode::ThreadSafe> HttpRequestPtr;
 #else
 	TWeakPtr<IHttpRequest> HttpRequestPtr;

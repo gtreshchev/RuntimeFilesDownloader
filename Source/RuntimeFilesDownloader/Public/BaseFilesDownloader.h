@@ -4,7 +4,7 @@
 
 #include "Http.h"
 #include "Templates/SharedPointer.h"
-#include "Launch/Resources/Version.h"
+#include "Misc/EngineVersionComparison.h"
 #include "BaseFilesDownloader.generated.h"
 
 /** Dynamic delegate to track download progress */
