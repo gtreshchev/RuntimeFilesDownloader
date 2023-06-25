@@ -34,7 +34,7 @@ void UBaseFilesDownloader::GetContentSize(const FString& URL, float Timeout, con
 
 void UBaseFilesDownloader::GetContentSize(const FString& URL, float Timeout, const FOnGetDownloadContentLengthNative& OnComplete)
 {
-#if UE_VERSION_NEWER_THAN(4, 25, 0)
+#if UE_VERSION_NEWER_THAN(4, 26, 0)
 	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest{FHttpModule::Get().CreateRequest()};
 #else
 	const TSharedRef<IHttpRequest> HttpRequest{FHttpModule::Get().CreateRequest()};
@@ -43,7 +43,7 @@ void UBaseFilesDownloader::GetContentSize(const FString& URL, float Timeout, con
 	HttpRequest->SetVerb("HEAD");
 	HttpRequest->SetURL(URL);
 
-#if UE_VERSION_NEWER_THAN(4, 25, 0)
+#if UE_VERSION_NEWER_THAN(4, 26, 0)
 	HttpRequest->SetTimeout(Timeout);
 #else
 	UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("The Timeout feature is only supported in engine version 4.26 or later. Please update your engine to use this feature"));

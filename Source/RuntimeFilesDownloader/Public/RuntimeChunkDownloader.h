@@ -94,7 +94,7 @@ public:
 
 protected:
 	/** A weak pointer to the HTTP request being used for the download */
-#if UE_VERSION_NEWER_THAN(4, 25, 0)
+#if UE_VERSION_NEWER_THAN(4, 26, 0)
 	TWeakPtr<IHttpRequest, ESPMode::ThreadSafe> HttpRequestPtr;
 #else
 	TWeakPtr<IHttpRequest> HttpRequestPtr;

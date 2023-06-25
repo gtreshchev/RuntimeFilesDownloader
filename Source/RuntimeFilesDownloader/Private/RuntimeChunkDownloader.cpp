@@ -70,7 +70,7 @@ TFuture<TArray64<uint8>> FRuntimeChunkDownloader::DownloadFileByChunk(const FStr
 
 	TWeakPtr<FRuntimeChunkDownloader> WeakThisPtr = AsShared();
 
-#if UE_VERSION_NEWER_THAN(4, 25, 0)
+#if UE_VERSION_NEWER_THAN(4, 26, 0)
 	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequestRef = FHttpModule::Get().CreateRequest();
 #else
 	const TSharedRef<IHttpRequest> HttpRequestRef = FHttpModule::Get().CreateRequest();
@@ -79,7 +79,7 @@ TFuture<TArray64<uint8>> FRuntimeChunkDownloader::DownloadFileByChunk(const FStr
 	HttpRequestRef->SetVerb("GET");
 	HttpRequestRef->SetURL(URL);
 
-#if UE_VERSION_NEWER_THAN(4, 25, 0)
+#if UE_VERSION_NEWER_THAN(4, 26, 0)
 	HttpRequestRef->SetTimeout(Timeout);
 #else
 	UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("The Timeout feature is only supported in engine version 4.26 or later. Please update your engine to use this feature"));
@@ -195,7 +195,7 @@ void FRuntimeChunkDownloader::CancelDownload()
 	bCanceled = true;
 	if (HttpRequestPtr.IsValid())
 	{
-#if UE_VERSION_NEWER_THAN(4, 25, 0)
+#if UE_VERSION_NEWER_THAN(4, 26, 0)
 		const TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpRequestPtr.Pin();
 #else
 		const TSharedPtr<IHttpRequest> HttpRequest = HttpRequestPtr.Pin();
@@ -210,7 +210,7 @@ TFuture<int64> FRuntimeChunkDownloader::GetContentSize(const FString& URL, float
 {
 	TSharedPtr<TPromise<int64>> PromisePtr = MakeShared<TPromise<int64>>();
 
-#if UE_VERSION_NEWER_THAN(4, 25, 0)
+#if UE_VERSION_NEWER_THAN(4, 26, 0)
 	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequestRef = FHttpModule::Get().CreateRequest();
 #else
 	const TSharedRef<IHttpRequest> HttpRequestRef = FHttpModule::Get().CreateRequest();
@@ -219,7 +219,7 @@ TFuture<int64> FRuntimeChunkDownloader::GetContentSize(const FString& URL, float
 	HttpRequestRef->SetVerb("HEAD");
 	HttpRequestRef->SetURL(URL);
 
-#if UE_VERSION_NEWER_THAN(4, 25, 0)
+#if UE_VERSION_NEWER_THAN(4, 26, 0)
 	HttpRequestRef->SetTimeout(Timeout);
 #else
 	UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("The Timeout feature is only supported in engine version 4.26 or later. Please update your engine to use this feature"));
