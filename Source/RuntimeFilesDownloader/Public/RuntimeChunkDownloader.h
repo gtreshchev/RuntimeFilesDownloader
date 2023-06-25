@@ -6,6 +6,7 @@
 #include "Http.h"
 #include "Templates/SharedPointer.h"
 #include "Async/Future.h"
+#include "Misc/EngineVersionComparison.h"
 
 #if UE_VERSION_OLDER_THAN(5, 1, 0)
 template <typename InIntType>

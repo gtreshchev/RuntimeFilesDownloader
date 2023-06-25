@@ -3,7 +3,6 @@
 #include "FileToMemoryDownloader.h"
 #include "RuntimeChunkDownloader.h"
 #include "RuntimeFilesDownloaderDefines.h"
-#include "Runtime/Launch/Resources/Version.h"
 
 UFileToMemoryDownloader* UFileToMemoryDownloader::DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToMemoryDownloadComplete& OnComplete)
 {
