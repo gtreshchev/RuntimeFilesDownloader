@@ -24,7 +24,8 @@
 
 ## Features
 
-- Low size
+- Support for downloading files larger than 2GB
+- Chunk-based content downloading
 - No any third party libraries and external dependencies
 - Support for all available devices (Android, iOS, Windows, Mac, Linux, etc)
 
