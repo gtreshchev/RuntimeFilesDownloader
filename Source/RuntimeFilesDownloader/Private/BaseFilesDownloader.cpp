@@ -4,6 +4,7 @@
 #include "RuntimeFilesDownloaderDefines.h"
 #include "Containers/UnrealString.h"
 #include "ImageUtils.h"
+#include "RuntimeChunkDownloader.h"
 #include "Engine/World.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -26,47 +27,25 @@ bool UBaseFilesDownloader::CancelDownload()
 
 void UBaseFilesDownloader::GetContentSize(const FString& URL, float Timeout, const FOnGetDownloadContentLength& OnComplete)
 {
-	GetContentSize(URL, Timeout, FOnGetDownloadContentLengthNative::CreateLambda([OnComplete](int64 ContentLength)
+	GetContentSize(URL, Timeout, FOnGetDownloadContentLengthNative::CreateLambda([OnComplete](int64 ContentSize)
 	{
-		OnComplete.ExecuteIfBound(ContentLength);
+		OnComplete.ExecuteIfBound(ContentSize);
 	}));
 }
 
 void UBaseFilesDownloader::GetContentSize(const FString& URL, float Timeout, const FOnGetDownloadContentLengthNative& OnComplete)
 {
-#if UE_VERSION_NEWER_THAN(4, 26, 0)
-	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest{FHttpModule::Get().CreateRequest()};
-#else
-	const TSharedRef<IHttpRequest> HttpRequest{FHttpModule::Get().CreateRequest()};
-#endif
-
-	HttpRequest->SetVerb("HEAD");
-	HttpRequest->SetURL(URL);
-
-#if UE_VERSION_NEWER_THAN(4, 26, 0)
-	HttpRequest->SetTimeout(Timeout);
-#else
-	UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("The Timeout feature is only supported in engine version 4.26 or later. Please update your engine to use this feature"));
-#endif
-
-	HttpRequest->OnProcessRequestComplete().BindLambda([OnComplete](const FHttpRequestPtr& HttpRequest, const FHttpResponsePtr& HttpResponse, const bool bSucceeded)
+	UBaseFilesDownloader* FileDownloader = NewObject<UBaseFilesDownloader>();
+	FileDownloader->AddToRoot();
+	FileDownloader->RuntimeChunkDownloaderPtr = MakeShared<FRuntimeChunkDownloader>();
+	FileDownloader->RuntimeChunkDownloaderPtr->GetContentSize(URL, Timeout).Next([FileDownloader, OnComplete](int64 ContentSize)
 	{
-		if (!HttpResponse.IsValid() || HttpResponse->GetContentLength() <= 0)
+		if (FileDownloader)
 		{
-			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to get content size: content length is 0"));
-			OnComplete.ExecuteIfBound(0);
-			return;
+			FileDownloader->RemoveFromRoot();
 		}
-
-		const int32 ContentLength = HttpResponse->GetContentLength();
-		OnComplete.ExecuteIfBound(ContentLength);
+		OnComplete.ExecuteIfBound(ContentSize);
 	});
-
-	if (!HttpRequest->ProcessRequest())
-	{
-		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to get content size: request processing error"));
-		OnComplete.ExecuteIfBound(0);
-	}
 }
 
 FString UBaseFilesDownloader::BytesToString(const TArray<uint8>& Bytes)
@@ -114,11 +93,6 @@ bool UBaseFilesDownloader::IsFileExist(const FString& FilePath)
 
 void UBaseFilesDownloader::BroadcastProgress(int64 BytesReceived, int64 ContentLength, float ProgressRatio) const
 {
-	if (OnDownloadProgressNative.IsBound())
-	{
-		OnDownloadProgressNative.Execute(BytesReceived, ContentLength, ProgressRatio);
-	}
-
 	if (OnDownloadProgress.IsBound())
 	{
 		OnDownloadProgress.Execute(BytesReceived, ContentLength, ProgressRatio);

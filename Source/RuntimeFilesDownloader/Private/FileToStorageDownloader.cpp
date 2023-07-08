@@ -22,10 +22,10 @@ UFileToStorageDownloader* UFileToStorageDownloader::DownloadFileToStorage(const 
 
 UFileToStorageDownloader* UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, const FOnDownloadProgressNative& OnProgress, const FOnFileToStorageDownloadCompleteNative& OnComplete)
 {
-	UFileToStorageDownloader* Downloader{NewObject<UFileToStorageDownloader>(StaticClass())};
+	UFileToStorageDownloader* Downloader = NewObject<UFileToStorageDownloader>(StaticClass());
 	Downloader->AddToRoot();
-	Downloader->OnDownloadProgressNative = OnProgress;
-	Downloader->OnDownloadCompleteNative = OnComplete;
+	Downloader->OnDownloadProgress = OnProgress;
+	Downloader->OnDownloadComplete = OnComplete;
 	Downloader->DownloadFileToStorage(URL, SavePath, Timeout, ContentType);
 	return Downloader;
 }
@@ -67,9 +67,9 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 	FileSavePath = SavePath;
 
 	RuntimeChunkDownloaderPtr = MakeShared<FRuntimeChunkDownloader>();
-	RuntimeChunkDownloaderPtr->DownloadFile(URL, Timeout, ContentType, [this](int64 BytesReceived, int64 ContentLength)
+	RuntimeChunkDownloaderPtr->DownloadFile(URL, Timeout, ContentType, /*TNumericLimits<TArray<uint8>::SizeType>::Max()*/5242880, [this](int64 BytesReceived, int64 ContentSize)
 	{
-		BroadcastProgress(BytesReceived, ContentLength, static_cast<float>(BytesReceived) / ContentLength);
+		BroadcastProgress(BytesReceived, ContentSize, static_cast<float>(BytesReceived) / ContentSize);
 	}).Next([this](TArray64<uint8> DownloadedContent) mutable
 	{
 		OnComplete_Internal(MoveTemp(DownloadedContent));
@@ -78,17 +78,11 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 
 void UFileToStorageDownloader::BroadcastResult(EDownloadToStorageResult Result) const
 {
-	if (OnDownloadCompleteNative.IsBound())
-	{
-		OnDownloadCompleteNative.Execute(Result);
-	}
-
 	if (OnDownloadComplete.IsBound())
 	{
 		OnDownloadComplete.Execute(Result);
 	}
-
-	if (!OnDownloadCompleteNative.IsBound() && !OnDownloadComplete.IsBound())
+	else
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You have not bound any delegates to get the result of the download"));
 	}

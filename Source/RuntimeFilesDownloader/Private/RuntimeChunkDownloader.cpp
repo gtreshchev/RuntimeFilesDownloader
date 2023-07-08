@@ -12,60 +12,251 @@ FRuntimeChunkDownloader::~FRuntimeChunkDownloader()
 	UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("FRuntimeChunkDownloader destroyed"));
 }
 
-TFuture<TArray64<uint8>> FRuntimeChunkDownloader::DownloadFile(const FString& URL, float Timeout, const FString& ContentType, const TFunction<void(int64, int64)>& OnProgress)
+TFuture<TArray64<uint8>> FRuntimeChunkDownloader::DownloadFile(const FString& URL, float Timeout, const FString& ContentType, int64 MaxChunkSize, const TFunction<void(int64, int64)>& OnProgress)
 {
-	TSharedPtr<TPromise<TArray64<uint8>>> PromisePtr = MakeShared<TPromise<TArray64<uint8>>>();
-	TWeakPtr<FRuntimeChunkDownloader> WeakThisPtr = AsShared();
-	GetContentSize(URL, Timeout).Next([WeakThisPtr, PromisePtr, URL, Timeout, ContentType, OnProgress](int64 ContentLength)
-	{
-		TSharedPtr<FRuntimeChunkDownloader> SharedThis = WeakThisPtr.Pin();
-		if (!SharedThis.IsValid())
-		{
-			UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Failed to download file: downloader has been destroyed"));
-			PromisePtr->SetValue(TArray64<uint8>());
-			return;
-		}
-
-		if (ContentLength <= 0)
-		{
-			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file: content length is <= 0"));
-			PromisePtr->SetValue(TArray64<uint8>());
-			return;
-		}
-
-		SharedThis->DownloadFileByChunk(URL, Timeout, ContentType, ContentLength, TNumericLimits<TArray<uint8>::SizeType>::Max(), OnProgress).Next([PromisePtr](TArray64<uint8>&& ResultData)
-		{
-			PromisePtr->SetValue(MoveTemp(ResultData));
-		});
-	});
-	return PromisePtr->GetFuture();
-}
-
-TFuture<TArray64<uint8>> FRuntimeChunkDownloader::DownloadFileByChunk(const FString& URL, float Timeout, const FString& ContentType, int64 ContentSize, int64 MaxChunkSize, const TFunction<void(int64, int64)>& OnProgress, FInt64Vector2 InternalContentRange, TArray64<uint8>&& InternalResultData)
-{
-	// Check if download has been canceled before starting the download
 	if (bCanceled)
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Canceled file download from %s"), *URL);
 		return MakeFulfilledPromise<TArray64<uint8>>(TArray64<uint8>()).GetFuture();
 	}
 
-	if (MaxChunkSize <= 0)
+	TSharedPtr<TPromise<TArray64<uint8>>> PromisePtr = MakeShared<TPromise<TArray64<uint8>>>();
+	TWeakPtr<FRuntimeChunkDownloader> WeakThisPtr = AsShared();
+	GetContentSize(URL, Timeout).Next([WeakThisPtr, PromisePtr, URL, Timeout, ContentType, MaxChunkSize, OnProgress](int64 ContentSize) mutable
 	{
-		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file from %s: MaxChunkSize is <= 0"), *URL);
+		TSharedPtr<FRuntimeChunkDownloader> SharedThis = WeakThisPtr.Pin();
+		if (!SharedThis.IsValid())
+		{
+			UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Failed to download file chunk from %s: downloader has been destroyed"), *URL);
+			PromisePtr->SetValue(TArray64<uint8>());
+			return;
+		}
+
+		if (ContentSize <= 0)
+		{
+			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file from %s: ContentSize is <= 0"), *URL);
+			PromisePtr->SetValue(TArray64<uint8>());
+			return;
+		}
+
+		if (MaxChunkSize <= 0)
+		{
+			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file from %s: MaxChunkSize is <= 0"), *URL);
+			PromisePtr->SetValue(TArray64<uint8>());
+			return;
+		}
+
+		TArray64<uint8> OverallDownloadedData;
+		{
+			UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Pre-allocating %lld bytes for file download from %s"), ContentSize, *URL);
+			OverallDownloadedData.SetNumUninitialized(ContentSize);
+		}
+
+		FInt64Vector2 ChunkRange;
+		{
+			ChunkRange.X = 0;
+			ChunkRange.Y = FMath::Min(MaxChunkSize, ContentSize) - 1;
+		}
+
+		TSharedPtr<int64> ChunkOffsetPtr = MakeShared<int64>(ChunkRange.X);
+		TSharedPtr<bool> bChunkDownloadedPtr = MakeShared<bool>(false);
+
+		auto OnChunkDownloaded = [WeakThisPtr, PromisePtr, URL, ContentSize, OverallDownloadedData = MoveTemp(OverallDownloadedData), bChunkDownloadedPtr, ChunkOffsetPtr](TArray64<uint8>&& ResultData) mutable
+		{
+			if (bChunkDownloadedPtr.IsValid())
+			{
+				*bChunkDownloadedPtr = true;
+			}
+
+			TSharedPtr<FRuntimeChunkDownloader> SharedThis = WeakThisPtr.Pin();
+			if (!SharedThis.IsValid())
+			{
+				UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Failed to download file chunk from %s: downloader has been destroyed"), *URL);
+				PromisePtr->SetValue(TArray64<uint8>());
+				return;
+			}
+
+			if (SharedThis->bCanceled)
+			{
+				UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Canceled file chunk download from %s"), *URL);
+				PromisePtr->SetValue(TArray64<uint8>());
+				return;
+			}
+
+			// Calculate the currently size of the downloaded content in the result buffer
+			const int64 CurrentlyDownloadedSize = *ChunkOffsetPtr + ResultData.Num();
+
+			// Check if some values are out of range
+			{
+				if (*ChunkOffsetPtr < 0 || *ChunkOffsetPtr >= OverallDownloadedData.Num())
+				{
+					UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: data offset is out of range (%lld, expected [0, %lld])"), *URL, *ChunkOffsetPtr, OverallDownloadedData.Num());
+					PromisePtr->SetValue(TArray64<uint8>());
+					return;
+				}
+
+				if (CurrentlyDownloadedSize > OverallDownloadedData.Num())
+				{
+					UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: overall downloaded size is out of range (%lld, expected [0, %lld])"), *URL, CurrentlyDownloadedSize, OverallDownloadedData.Num());
+					PromisePtr->SetValue(TArray64<uint8>());
+					return;
+				}
+			}
+
+			// Append the downloaded chunk to the result data
+			FMemory::Memcpy(OverallDownloadedData.GetData() + *ChunkOffsetPtr, ResultData.GetData(), ResultData.Num());
+
+			// If the download is complete, return the result data
+			if (*ChunkOffsetPtr + ResultData.Num() >= ContentSize)
+			{
+				PromisePtr->SetValue(MoveTemp(OverallDownloadedData));
+				return;
+			}
+
+			// Increase the offset by the size of the downloaded chunk
+			*ChunkOffsetPtr += ResultData.Num();
+		};
+
+		SharedThis->DownloadFilePerChunk(URL, Timeout, ContentType, MaxChunkSize, ChunkRange, OnProgress, OnChunkDownloaded).Next([PromisePtr, bChunkDownloadedPtr, URL](bool bSucceeded)
+		{
+			if (!bSucceeded)
+			{
+				UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file by chunk from %s"), *URL);
+
+				// Only return an empty data if no chunk was downloaded
+				if (bChunkDownloadedPtr.IsValid() && (*bChunkDownloadedPtr.Get() == false))
+				{
+					PromisePtr->SetValue(TArray64<uint8>());
+				}
+			}
+		});
+	});
+	return PromisePtr->GetFuture();
+}
+
+TFuture<bool> FRuntimeChunkDownloader::DownloadFilePerChunk(const FString& URL, float Timeout, const FString& ContentType, int64 MaxChunkSize, FInt64Vector2 ChunkRange, const TFunction<void(int64, int64)>& OnProgress, const TFunction<void(TArray64<uint8>&&)>& OnChunkDownloaded)
+{
+	if (bCanceled)
+	{
+		UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Canceled file chunk download from %s"), *URL);
+		return MakeFulfilledPromise<bool>(false).GetFuture();
+	}
+
+	TSharedPtr<TPromise<bool>> PromisePtr = MakeShared<TPromise<bool>>();
+	TWeakPtr<FRuntimeChunkDownloader> WeakThisPtr = AsShared();
+	GetContentSize(URL, Timeout).Next([WeakThisPtr, PromisePtr, URL, Timeout, ContentType, MaxChunkSize, OnProgress, OnChunkDownloaded, ChunkRange](int64 ContentSize) mutable
+	{
+		TSharedPtr<FRuntimeChunkDownloader> SharedThis = WeakThisPtr.Pin();
+		if (!SharedThis.IsValid())
+		{
+			UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Failed to download file chunk from %s: downloader has been destroyed"), *URL);
+			PromisePtr->SetValue(false);
+			return;
+		}
+		
+		if (SharedThis->bCanceled)
+		{
+			UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Canceled file chunk download from %s"), *URL);
+			PromisePtr->SetValue(false);
+			return;
+		}
+
+		if (ContentSize <= 0)
+		{
+			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: content size is <= 0"), *URL);
+			PromisePtr->SetValue(false);
+			return;
+		}
+
+		if (MaxChunkSize <= 0)
+		{
+			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: max chunk size is <= 0"), *URL);
+			PromisePtr->SetValue(false);
+			return;
+		}
+
+		// If the chunk range is not specified, determine the range based on the max chunk size and the content size
+		if (ChunkRange.X == 0 && ChunkRange.Y == 0)
+		{
+			ChunkRange.Y = FMath::Min(MaxChunkSize, ContentSize) - 1;
+		}
+
+		if (ChunkRange.Y > ContentSize)
+		{
+			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: chunk range is out of range (%lld, expected [0, %lld])"), *URL, ChunkRange.Y, ContentSize);
+			PromisePtr->SetValue(false);
+			return;
+		}
+
+		auto OnProgressInternal = [WeakThisPtr, PromisePtr, URL, Timeout, ContentType, MaxChunkSize, OnChunkDownloaded, OnProgress, ChunkRange](int64 BytesReceived, int64 ContentSize) mutable
+		{
+			TSharedPtr<FRuntimeChunkDownloader> SharedThis = WeakThisPtr.Pin();
+			if (SharedThis.IsValid())
+			{
+				const float Progress = static_cast<float>(BytesReceived + ChunkRange.X) / ContentSize;
+				UE_LOG(LogRuntimeFilesDownloader, Log, TEXT("Downloaded %lld bytes of file chunk from %s. Range: {%lld; %lld}, Overall: %lld, Progress: %f"), BytesReceived, *URL, ChunkRange.X, ChunkRange.Y, ContentSize, Progress);
+				OnProgress(BytesReceived + ChunkRange.X, ContentSize);
+			}
+		};
+
+		SharedThis->DownloadFileByChunk(URL, Timeout, ContentType, ContentSize, ChunkRange, OnProgressInternal).Next([WeakThisPtr, PromisePtr, URL, Timeout, ContentType, ContentSize, MaxChunkSize, OnChunkDownloaded, OnProgress, ChunkRange](TArray64<uint8>&& ResultData)
+		{
+			TSharedPtr<FRuntimeChunkDownloader> SharedThis = WeakThisPtr.Pin();
+			if (!SharedThis.IsValid())
+			{
+				UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Failed to download file chunk from %s: downloader has been destroyed"), *URL);
+				PromisePtr->SetValue(false);
+				return;
+			}
+
+			if (SharedThis->bCanceled)
+			{
+				UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Canceled file chunk download from %s"), *URL);
+				PromisePtr->SetValue(false);
+				return;
+			}
+
+			OnChunkDownloaded(MoveTemp(ResultData));
+
+			// Check if the download is complete
+			if (ContentSize > ChunkRange.Y + 1)
+			{
+				const int64 ChunkStart = ChunkRange.Y + 1;
+				const int64 ChunkEnd = FMath::Min(ChunkStart + MaxChunkSize, ContentSize) - 1;
+
+				SharedThis->DownloadFilePerChunk(URL, Timeout, ContentType, MaxChunkSize, FInt64Vector2(ChunkStart, ChunkEnd), OnProgress, OnChunkDownloaded).Next([WeakThisPtr, PromisePtr](bool bSuccess)
+				{
+					PromisePtr->SetValue(bSuccess);
+				});
+			}
+			else
+			{
+				PromisePtr->SetValue(true);
+			}
+		});
+	});
+
+	return PromisePtr->GetFuture();
+}
+
+TFuture<TArray64<uint8>> FRuntimeChunkDownloader::DownloadFileByChunk(const FString& URL, float Timeout, const FString& ContentType, int64 ContentSize, FInt64Vector2 ChunkRange, const TFunction<void(int64, int64)>& OnProgress)
+{
+	if (bCanceled)
+	{
+		UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Canceled file download from %s"), *URL);
 		return MakeFulfilledPromise<TArray64<uint8>>(TArray64<uint8>()).GetFuture();
 	}
 
-	// If the InternalResultData was not provided, initialize it to the size of the file
-	if (InternalResultData.Num() <= 0)
+	if (ChunkRange.X < 0 || ChunkRange.Y <= 0 || ChunkRange.X > ChunkRange.Y)
 	{
-		InternalResultData.SetNumUninitialized(ContentSize);
+		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: chunk range (%lld; %lld) is invalid"), *URL, ChunkRange.X, ChunkRange.Y);
+		return MakeFulfilledPromise<TArray64<uint8>>(TArray64<uint8>()).GetFuture();
 	}
 
-	// If the InternalContentRange was not provided, set it to the first chunk of size MaxChunkSize
-	if (InternalContentRange.X == 0 && InternalContentRange.Y == 0)
+	if (ChunkRange.Y - ChunkRange.X + 1 > ContentSize)
 	{
-		InternalContentRange.Y = FMath::Min(ContentSize, MaxChunkSize) - 1;
+		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: chunk range (%lld; %lld) is out of range (%lld)"), *URL, ChunkRange.X, ChunkRange.Y, ContentSize);
+		return MakeFulfilledPromise<TArray64<uint8>>(TArray64<uint8>()).GetFuture();
 	}
 
 	TWeakPtr<FRuntimeChunkDownloader> WeakThisPtr = AsShared();
@@ -90,30 +281,34 @@ TFuture<TArray64<uint8>> FRuntimeChunkDownloader::DownloadFileByChunk(const FStr
 		HttpRequestRef->SetHeader(TEXT("Content-Type"), ContentType);
 	}
 
-	if (MaxChunkSize < ContentSize)
-	{
-		const FString RangeHeaderValue = FString::Format(TEXT("bytes={0}-{1}"), {InternalContentRange.X, InternalContentRange.Y});
-		HttpRequestRef->SetHeader(TEXT("Range"), RangeHeaderValue);
-	}
+	const FString RangeHeaderValue = FString::Format(TEXT("bytes={0}-{1}"), {ChunkRange.X, ChunkRange.Y});
+	HttpRequestRef->SetHeader(TEXT("Range"), RangeHeaderValue);
 
-	HttpRequestRef->OnRequestProgress().BindLambda([WeakThisPtr, ContentSize, InternalContentRange, OnProgress](FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived)
+	HttpRequestRef->OnRequestProgress().BindLambda([WeakThisPtr, ContentSize, ChunkRange, OnProgress](FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived)
 	{
 		TSharedPtr<FRuntimeChunkDownloader> SharedThis = WeakThisPtr.Pin();
 		if (SharedThis.IsValid())
 		{
-			const float Progress = static_cast<float>(InternalContentRange.X + BytesReceived) / ContentSize;
-			UE_LOG(LogRuntimeFilesDownloader, Verbose, TEXT("Downloaded %d bytes of file chunk from %s. Range: {%lld; %lld}, Overall: %lld, Progress: %f"), BytesReceived, *Request->GetURL(), InternalContentRange.X, InternalContentRange.Y, ContentSize, Progress);
-			OnProgress(InternalContentRange.X + BytesReceived, ContentSize);
+			const float Progress = static_cast<float>(BytesReceived) / ContentSize;
+			UE_LOG(LogRuntimeFilesDownloader, Verbose, TEXT("Downloaded %d bytes of file chunk from %s. Range: {%lld; %lld}, Overall: %lld, Progress: %f"), BytesReceived, *Request->GetURL(), ChunkRange.X, ChunkRange.Y, ContentSize, Progress);
+			OnProgress(BytesReceived, ContentSize);
 		}
 	});
 
 	TSharedPtr<TPromise<TArray64<uint8>>> PromisePtr = MakeShared<TPromise<TArray64<uint8>>>();
-	HttpRequestRef->OnProcessRequestComplete().BindLambda([WeakThisPtr, PromisePtr, URL, Timeout, ContentType, ContentSize, MaxChunkSize, InternalContentRange, InternalResultData = MoveTemp(InternalResultData), OnProgress](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess) mutable
+	HttpRequestRef->OnProcessRequestComplete().BindLambda([WeakThisPtr, PromisePtr, URL, Timeout, ContentType, ContentSize, ChunkRange, OnProgress](FHttpRequestPtr Request, FHttpResponsePtr Response, bool bSuccess) mutable
 	{
 		TSharedPtr<FRuntimeChunkDownloader> SharedThis = WeakThisPtr.Pin();
 		if (!SharedThis.IsValid())
 		{
-			UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Failed to download file chunk: downloader has been destroyed"));
+			UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Failed to download file chunk from %s: downloader has been destroyed"), *URL);
+			PromisePtr->SetValue(TArray64<uint8>());
+			return;
+		}
+
+		if (SharedThis->bCanceled)
+		{
+			UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Canceled file chunk download from %s"), *URL);
 			PromisePtr->SetValue(TArray64<uint8>());
 			return;
 		}
@@ -132,52 +327,16 @@ TFuture<TArray64<uint8>> FRuntimeChunkDownloader::DownloadFileByChunk(const FStr
 			return;
 		}
 
-		const int64 DataOffset = InternalContentRange.X;
-		const TArray<uint8>& ResponseContent = Response->GetContent();
+		const int64 ContentLength = FCString::Atoi64(*Response->GetHeader("Content-Length"));
 
-		// Calculate the overall size of the downloaded content in the result buffer
-		const int64 OverallDownloadedSize = DataOffset + ResponseContent.Num();
-
-		// Check if some values are out of range
+		if (ContentLength != ChunkRange.Y - ChunkRange.X + 1)
 		{
-			if (DataOffset < 0 || DataOffset >= InternalResultData.Num())
-			{
-				UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: data offset is out of range"), *Request->GetURL());
-				PromisePtr->SetValue(TArray64<uint8>());
-				return;
-			}
-
-			if (OverallDownloadedSize > InternalResultData.Num())
-			{
-				UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: overall downloaded size is out of range"), *Request->GetURL());
-				PromisePtr->SetValue(TArray64<uint8>());
-				return;
-			}
+			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: content length (%lld) does not match the expected length (%lld)"), *Request->GetURL(), ContentLength, ChunkRange.Y - ChunkRange.X + 1);
+			PromisePtr->SetValue(TArray64<uint8>());
+			return;
 		}
-
-		FMemory::Memcpy(InternalResultData.GetData() + DataOffset, ResponseContent.GetData(), ResponseContent.Num());
-
-		// Check if there's still more content to download
-		if (OverallDownloadedSize < ContentSize)
-		{
-			// Calculate how much more data needs to be downloaded in the next chunk
-			const int64 BytesRemaining = ContentSize - OverallDownloadedSize;
-			const int64 BytesToDownload = FMath::Min(BytesRemaining, MaxChunkSize);
-
-			// Calculate the range of data to download in the next chunk
-			const FInt64Vector2 NewContentRange = FInt64Vector2(OverallDownloadedSize, OverallDownloadedSize + BytesToDownload - 1);
-
-			// Initiate the next download chunk
-			SharedThis->DownloadFileByChunk(URL, Timeout, ContentType, ContentSize, MaxChunkSize, OnProgress, NewContentRange, MoveTemp(InternalResultData)).Next([PromisePtr](TArray64<uint8>&& ResultData)
-			{
-				PromisePtr->SetValue(MoveTemp(ResultData));
-			});
-		}
-		else
-		{
-			// If there is no more content to download, then the download is complete
-			PromisePtr->SetValue(MoveTemp(InternalResultData));
-		}
+		
+		PromisePtr->SetValue(TArray64<uint8>(Response->GetContent()));
 	});
 
 	if (!HttpRequestRef->ProcessRequest())
@@ -188,22 +347,6 @@ TFuture<TArray64<uint8>> FRuntimeChunkDownloader::DownloadFileByChunk(const FStr
 
 	HttpRequestPtr = HttpRequestRef;
 	return PromisePtr->GetFuture();
-}
-
-void FRuntimeChunkDownloader::CancelDownload()
-{
-	bCanceled = true;
-	if (HttpRequestPtr.IsValid())
-	{
-#if UE_VERSION_NEWER_THAN(4, 26, 0)
-		const TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpRequestPtr.Pin();
-#else
-		const TSharedPtr<IHttpRequest> HttpRequest = HttpRequestPtr.Pin();
-#endif
-
-		HttpRequest->CancelRequest();
-	}
-	UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Download canceled"));
 }
 
 TFuture<int64> FRuntimeChunkDownloader::GetContentSize(const FString& URL, float Timeout)
@@ -237,11 +380,12 @@ TFuture<int64> FRuntimeChunkDownloader::GetContentSize(const FString& URL, float
 		const int64 ContentLength = FCString::Atoi64(*Response->GetHeader("Content-Length"));
 		if (ContentLength <= 0)
 		{
-			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to get size of file from %s: content length is 0"), *URL);
+			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to get size of file from %s: content length is %lld, expected > 0"), *URL, ContentLength);
 			PromisePtr->SetValue(0);
 			return;
 		}
 
+		UE_LOG(LogRuntimeFilesDownloader, Log, TEXT("Got size of file from %s: %lld"), *URL, ContentLength);
 		PromisePtr->SetValue(ContentLength);
 	});
 
@@ -253,4 +397,20 @@ TFuture<int64> FRuntimeChunkDownloader::GetContentSize(const FString& URL, float
 
 	HttpRequestPtr = HttpRequestRef;
 	return PromisePtr->GetFuture();
+}
+
+void FRuntimeChunkDownloader::CancelDownload()
+{
+	bCanceled = true;
+	if (HttpRequestPtr.IsValid())
+	{
+#if UE_VERSION_NEWER_THAN(4, 26, 0)
+		const TSharedPtr<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpRequestPtr.Pin();
+#else
+		const TSharedPtr<IHttpRequest> HttpRequest = HttpRequestPtr.Pin();
+#endif
+
+		HttpRequest->CancelRequest();
+	}
+	UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Download canceled"));
 }

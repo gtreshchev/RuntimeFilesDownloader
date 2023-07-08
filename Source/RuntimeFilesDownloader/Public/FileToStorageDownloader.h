@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Http.h"
 #include "BaseFilesDownloader.h"
 #include "FileToStorageDownloader.generated.h"
 
@@ -26,18 +25,16 @@ DECLARE_DELEGATE_OneParam(FOnFileToStorageDownloadCompleteNative, EDownloadToSto
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnFileToStorageDownloadComplete, EDownloadToStorageResult, Result);
 
 /**
- * Library for downloading files to storage. Downloads a file and saves it to permanent storage
+ * Downloads a file and saves it to permanent storage
  */
-UCLASS(BlueprintType, Category = "File To Storage Downloader")
+UCLASS(BlueprintType, Category = "Runtime Files Downloader|Storage")
 class RUNTIMEFILESDOWNLOADER_API UFileToStorageDownloader : public UBaseFilesDownloader
 {
 	GENERATED_BODY()
 
+protected:
 	/** Static delegate for monitoring the completion of the download */
-	FOnFileToStorageDownloadCompleteNative OnDownloadCompleteNative;
-
-	/** Dynamic delegate for monitoring the completion of the download */
-	FOnFileToStorageDownloadComplete OnDownloadComplete;
+	FOnFileToStorageDownloadCompleteNative OnDownloadComplete;
 
 public:
 	/**
@@ -50,7 +47,7 @@ public:
 	 * @param OnProgress A delegate that will be called to broadcast the download progress
 	 * @param OnComplete A delegate that will be called to broadcast that the download is complete
 	 */
-	UFUNCTION(BlueprintCallable, Category = "File To Storage Downloader|Main")
+	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader|Storage")
 	static UFileToStorageDownloader* DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToStorageDownloadComplete& OnComplete);
 
 	/**
@@ -93,7 +90,4 @@ protected:
 protected:
 	/** The destination path to save the downloaded file */
 	FString FileSavePath;
-
-	/** Internal downloader */
-	TSharedPtr<class FRuntimeChunkDownloader> RuntimeChunkDownloaderPtr;
 };

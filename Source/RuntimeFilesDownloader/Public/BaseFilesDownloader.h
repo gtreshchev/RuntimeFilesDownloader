@@ -31,10 +31,7 @@ class RUNTIMEFILESDOWNLOADER_API UBaseFilesDownloader : public UObject
 
 protected:
 	/** Static delegate to track download progress */
-	FOnDownloadProgressNative OnDownloadProgressNative;
-
-	/** Dynamic delegate to track download progress */
-	FOnDownloadProgress OnDownloadProgress;
+	FOnDownloadProgressNative OnDownloadProgress;
 
 public:
 	UBaseFilesDownloader();
@@ -140,4 +137,7 @@ protected:
 	 * Broadcast the progress both multi-cast and single-cast delegates
 	 */
 	void BroadcastProgress(int64 BytesReceived, int64 ContentLength, float ProgressRatio) const;
+
+	/** Internal downloader */
+	TSharedPtr<class FRuntimeChunkDownloader> RuntimeChunkDownloaderPtr;
 };
