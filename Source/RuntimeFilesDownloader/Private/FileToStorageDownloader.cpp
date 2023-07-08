@@ -67,7 +67,7 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 	FileSavePath = SavePath;
 
 	RuntimeChunkDownloaderPtr = MakeShared<FRuntimeChunkDownloader>();
-	RuntimeChunkDownloaderPtr->DownloadFile(URL, Timeout, ContentType, /*TNumericLimits<TArray<uint8>::SizeType>::Max()*/5242880, [this](int64 BytesReceived, int64 ContentSize)
+	RuntimeChunkDownloaderPtr->DownloadFile(URL, Timeout, ContentType, TNumericLimits<TArray<uint8>::SizeType>::Max(), [this](int64 BytesReceived, int64 ContentSize)
 	{
 		BroadcastProgress(BytesReceived, ContentSize, static_cast<float>(BytesReceived) / ContentSize);
 	}).Next([this](TArray64<uint8> DownloadedContent) mutable
