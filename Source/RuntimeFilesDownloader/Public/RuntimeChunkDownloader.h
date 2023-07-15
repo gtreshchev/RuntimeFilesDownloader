@@ -8,6 +8,13 @@
 #include "Async/Future.h"
 #include "Misc/EngineVersionComparison.h"
 
+enum class EDownloadToMemoryResult : uint8;
+
+/**
+ * A struct that contains the result of downloading a file
+ */
+using FRuntimeChunkDownloaderResult = struct{ EDownloadToMemoryResult Result; TArray64<uint8> Data; };
+
 #if UE_VERSION_OLDER_THAN(5, 1, 0)
 template <typename InIntType>
 struct TIntVector2
@@ -70,7 +77,7 @@ public:
 	 * @param OnProgress A function that is called with the progress as BytesReceived and ContentSize
 	 * @return A future that resolves to the downloaded data as a TArray64<uint8>
 	 */
-	virtual TFuture<TArray64<uint8>> DownloadFile(const FString& URL, float Timeout, const FString& ContentType, int64 MaxChunkSize, const TFunction<void(int64, int64)>& OnProgress);
+	virtual TFuture<FRuntimeChunkDownloaderResult> DownloadFile(const FString& URL, float Timeout, const FString& ContentType, int64 MaxChunkSize, const TFunction<void(int64, int64)>& OnProgress);
 
 	/**
 	 * Download a file by dividing it into chunks and downloading each chunk separately
@@ -84,10 +91,10 @@ public:
 	 * @param OnChunkDownloaded A function that is called when each chunk is downloaded
 	 * @return A future that resolves to true if all chunks are downloaded successfully, false otherwise
 	 */
-	virtual TFuture<bool> DownloadFilePerChunk(const FString& URL, float Timeout, const FString& ContentType, int64 MaxChunkSize, FInt64Vector2 ChunkRange, const TFunction<void(int64, int64)>& OnProgress, const TFunction<void(TArray64<uint8>&&)>& OnChunkDownloaded);
+	virtual TFuture<EDownloadToMemoryResult> DownloadFilePerChunk(const FString& URL, float Timeout, const FString& ContentType, int64 MaxChunkSize, FInt64Vector2 ChunkRange, const TFunction<void(int64, int64)>& OnProgress, const TFunction<void(TArray64<uint8>&&)>& OnChunkDownloaded);
 
 	/**
-	 * Download a single chunk of a file.
+	 * Download a single chunk of a file
 	 *
 	 * @param URL The URL of the file to download
 	 * @param Timeout The timeout value in seconds
@@ -97,8 +104,20 @@ public:
 	 * @param OnProgress A function that is called with the progress as BytesReceived and ContentSize
 	 * @return A future that resolves to the downloaded data as a TArray64<uint8>
 	 */
-	virtual TFuture<TArray64<uint8>> DownloadFileByChunk(const FString& URL, float Timeout, const FString& ContentType, int64 ContentSize, FInt64Vector2 ChunkRange, const TFunction<void(int64, int64)>& OnProgress);
+	virtual TFuture<FRuntimeChunkDownloaderResult> DownloadFileByChunk(const FString& URL, float Timeout, const FString& ContentType, int64 ContentSize, FInt64Vector2 ChunkRange, const TFunction<void(int64, int64)>& OnProgress);
 
+	/**
+	 * Download a file using payload-based approach. This approach is used when the server does not return the Content-Length header
+	 *
+	 * @param URL The URL of the file to download
+	 * @param Timeout The timeout value in seconds
+	 * @param ContentType The content type of the file
+	 * @param OnProgress A function that is called with the progress as BytesReceived and ContentSize
+	 * @return A future that resolves to the downloaded data as a TArray64<uint8>
+	 * @note This approach cannot be used to download files that are larger than 2 GB
+	 */
+	virtual TFuture<FRuntimeChunkDownloaderResult> DownloadFileByPayload(const FString& URL, float Timeout, const FString& ContentType, const TFunction<void(int64, int64)>& OnProgress);
+	
 	/**
 	 * Get the content size of the file to be downloaded
 	 *

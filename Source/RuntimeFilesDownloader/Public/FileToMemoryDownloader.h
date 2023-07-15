@@ -11,7 +11,10 @@
 UENUM(BlueprintType, Category = "File To Memory Downloader")
 enum class EDownloadToMemoryResult : uint8
 {
-	SuccessDownloading UMETA(DisplayName = "Success"),
+	Success,
+	/** Downloaded successfully, but there was no Content-Length header in the response and thus downloaded by payload */
+	SucceededByPayload,
+	Cancelled,
 	DownloadFailed,
 	InvalidURL
 };
@@ -22,11 +25,17 @@ DECLARE_DELEGATE_TwoParams(FOnFileToMemoryDownloadCompleteNative, const TArray64
 /** Dynamic delegate to track download completion */
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnFileToMemoryDownloadComplete, const TArray<uint8>&, DownloadedContent, EDownloadToMemoryResult, Result);
 
+/** Static delegate to track chunk download completion */
+DECLARE_DELEGATE_OneParam(FOnFileToMemoryChunkDownloadCompleteNative, const TArray64<uint8>&);
+
+/** Dynamic delegate to track chunk download completion */
+DECLARE_DYNAMIC_DELEGATE_OneParam(FOnFileToMemoryChunkDownloadComplete, const TArray<uint8>&, DownloadedContent);
+
 /** Static delegate to track download completion */
-DECLARE_DELEGATE_OneParam(FOnFileToMemoryAllChunksDownloadCompleteNative, bool);
+DECLARE_DELEGATE_OneParam(FOnFileToMemoryAllChunksDownloadCompleteNative, EDownloadToMemoryResult);
 
 /** Dynamic delegate to track download completion */
-DECLARE_DYNAMIC_DELEGATE_OneParam(FOnFileToMemoryAllChunksDownloadComplete, bool, bSucceeded);
+DECLARE_DYNAMIC_DELEGATE_OneParam(FOnFileToMemoryAllChunksDownloadComplete, EDownloadToMemoryResult, Result);
 
 /**
  * Downloads a file into temporary memory (RAM) and outputs a byte array
@@ -39,6 +48,9 @@ class RUNTIMEFILESDOWNLOADER_API UFileToMemoryDownloader : public UBaseFilesDown
 protected:
 	/** Static delegate for monitoring the completion of the download */
 	FOnFileToMemoryDownloadCompleteNative OnDownloadComplete;
+
+	/** Static delegate for monitoring the completion of the chunk download */
+	FOnFileToMemoryChunkDownloadCompleteNative OnChunkDownloadComplete;
 
 	/** Static delegate for monitoring the full completion of the chunks download */
 	FOnFileToMemoryAllChunksDownloadCompleteNative OnAllChunksDownloadComplete;
@@ -75,11 +87,11 @@ public:
 	 * @param ContentType A string to set in the Content-Type header field. Use a MIME type to specify the file type
 	 * @param MaxChunkSize The maximum size of each chunk to download in bytes
 	 * @param OnProgress A delegate that will be called to broadcast the download progress
-	 * @param OnComplete Delegate for broadcasting the completion of the download. Will be called for each chunk
+	 * @param OnChunkDownloadComplete Delegate for broadcasting the completion of the download. Will be called for each chunk
 	 * @param OnAllChunksDownloadComplete Delegate for broadcasting the completion of the download of all chunks
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader|Memory")
-	static UFileToMemoryDownloader* DownloadFileToMemoryPerChunk(const FString& URL, float Timeout, const FString& ContentType, int32 MaxChunkSize, const FOnDownloadProgress& OnProgress, const FOnFileToMemoryDownloadComplete& OnComplete, const FOnFileToMemoryAllChunksDownloadComplete& OnAllChunksDownloadComplete);
+	static UFileToMemoryDownloader* DownloadFileToMemoryPerChunk(const FString& URL, float Timeout, const FString& ContentType, int32 MaxChunkSize, const FOnDownloadProgress& OnProgress, const FOnFileToMemoryChunkDownloadComplete& OnChunkDownloadComplete, const FOnFileToMemoryAllChunksDownloadComplete& OnAllChunksDownloadComplete);
 
 	/**
 	 * Download the file and save it as a byte array in temporary memory (RAM). Continuously broadcasts the download result per chunk. Suitable for use in C++
@@ -89,10 +101,10 @@ public:
 	 * @param ContentType A string to set in the Content-Type header field. Use a MIME type to specify the file type
 	 * @param MaxChunkSize The maximum size of each chunk to download in bytes
 	 * @param OnProgress A delegate that will be called to broadcast the download progress
-	 * @param OnComplete Delegate for broadcasting the completion of the download. Will be called for each chunk
+	 * @param OnChunkDownloadComplete Delegate for broadcasting the completion of the download. Will be called for each chunk
 	 * @param OnAllChunksDownloadComplete Delegate for broadcasting the completion of the download of all chunks
 	 */
-	static UFileToMemoryDownloader* DownloadFileToMemoryPerChunk(const FString& URL, float Timeout, const FString& ContentType, int64 MaxChunkSize, const FOnDownloadProgressNative& OnProgress, const FOnFileToMemoryDownloadCompleteNative& OnComplete, const FOnFileToMemoryAllChunksDownloadCompleteNative& OnAllChunksDownloadComplete);
+	static UFileToMemoryDownloader* DownloadFileToMemoryPerChunk(const FString& URL, float Timeout, const FString& ContentType, int64 MaxChunkSize, const FOnDownloadProgressNative& OnProgress, const FOnFileToMemoryChunkDownloadCompleteNative& OnChunkDownloadComplete, const FOnFileToMemoryAllChunksDownloadCompleteNative& OnAllChunksDownloadComplete);
 
 	//~ Begin UBaseFilesDownloader Interface
 	virtual bool CancelDownload() override;
@@ -117,14 +129,4 @@ protected:
 	 * @param MaxChunkSize The maximum size of each chunk to download in bytes
 	 */
 	void DownloadFileToMemoryPerChunk(const FString& URL, float Timeout, const FString& ContentType, int64 MaxChunkSize);
-
-	/**
-	 * Broadcast the download result
-	 */
-	void BroadcastResult(const TArray64<uint8>& DownloadedContent, EDownloadToMemoryResult Result) const;
-
-	/**
-	 * Internal callback for when file downloading has finished
-	 */
-	void OnComplete_Internal(TArray64<uint8> DownloadedContent);
 };

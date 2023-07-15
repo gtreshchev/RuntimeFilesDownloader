@@ -4,32 +4,32 @@
 #include "RuntimeChunkDownloader.h"
 #include "RuntimeFilesDownloaderDefines.h"
 
-UFileToMemoryDownloader* UFileToMemoryDownloader::DownloadFileToMemoryPerChunk(const FString& URL, float Timeout, const FString& ContentType, int32 MaxChunkSize, const FOnDownloadProgress& OnProgress, const FOnFileToMemoryDownloadComplete& OnComplete, const FOnFileToMemoryAllChunksDownloadComplete& OnAllChunksDownloadComplete)
+UFileToMemoryDownloader* UFileToMemoryDownloader::DownloadFileToMemoryPerChunk(const FString& URL, float Timeout, const FString& ContentType, int32 MaxChunkSize, const FOnDownloadProgress& OnProgress, const FOnFileToMemoryChunkDownloadComplete& OnChunkComplete, const FOnFileToMemoryAllChunksDownloadComplete& OnAllChunksDownloadComplete)
 {
-	return DownloadFileToMemoryPerChunk(URL, Timeout, ContentType, MaxChunkSize, FOnDownloadProgressNative::CreateLambda([OnProgress](int64 BytesReceived, int64 ContentLength, float Progress)
+	return DownloadFileToMemoryPerChunk(URL, Timeout, ContentType, MaxChunkSize, FOnDownloadProgressNative::CreateLambda([OnProgress](int64 BytesReceived, int64 ContentSize, float Progress)
 	{
-		OnProgress.ExecuteIfBound(BytesReceived, ContentLength, Progress);
-	}), FOnFileToMemoryDownloadCompleteNative::CreateLambda([OnComplete](const TArray64<uint8>& DownloadedContent, EDownloadToMemoryResult Result)
+		OnProgress.ExecuteIfBound(BytesReceived, ContentSize, Progress);
+	}), FOnFileToMemoryChunkDownloadCompleteNative::CreateLambda([OnChunkComplete](const TArray64<uint8>& DownloadedContent)
 	{
 		if (DownloadedContent.Num() > TNumericLimits<int32>::Max())
 		{
 			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("The size of the downloaded content exceeds the maximum limit for an int32 array. Maximum length: %d, Retrieved length: %lld\nA standard byte array can hold a maximum of 2 GB of data. If you need to download more than 2 GB of data into memory, consider using the C++ native equivalent instead of the Blueprint dynamic delegate"), TNumericLimits<int32>::Max(), DownloadedContent.Num());
-			OnComplete.ExecuteIfBound(TArray<uint8>(), EDownloadToMemoryResult::DownloadFailed);
+			OnChunkComplete.ExecuteIfBound(TArray<uint8>());
 			return;
 		}
-		OnComplete.ExecuteIfBound(TArray<uint8>(DownloadedContent), Result);
-	}), FOnFileToMemoryAllChunksDownloadCompleteNative::CreateLambda([OnAllChunksDownloadComplete](bool bSucceeded)
+		OnChunkComplete.ExecuteIfBound(TArray<uint8>(DownloadedContent));
+	}), FOnFileToMemoryAllChunksDownloadCompleteNative::CreateLambda([OnAllChunksDownloadComplete](EDownloadToMemoryResult Result)
 	{
-		OnAllChunksDownloadComplete.ExecuteIfBound(bSucceeded);
+		OnAllChunksDownloadComplete.ExecuteIfBound(Result);
 	}));
 }
 
-UFileToMemoryDownloader* UFileToMemoryDownloader::DownloadFileToMemoryPerChunk(const FString& URL, float Timeout, const FString& ContentType, int64 MaxChunkSize, const FOnDownloadProgressNative& OnProgress, const FOnFileToMemoryDownloadCompleteNative& OnComplete, const FOnFileToMemoryAllChunksDownloadCompleteNative& OnAllChunksDownloadComplete)
+UFileToMemoryDownloader* UFileToMemoryDownloader::DownloadFileToMemoryPerChunk(const FString& URL, float Timeout, const FString& ContentType, int64 MaxChunkSize, const FOnDownloadProgressNative& OnProgress, const FOnFileToMemoryChunkDownloadCompleteNative& OnChunkComplete, const FOnFileToMemoryAllChunksDownloadCompleteNative& OnAllChunksDownloadComplete)
 {
 	UFileToMemoryDownloader* Downloader = NewObject<UFileToMemoryDownloader>(StaticClass());
 	Downloader->AddToRoot();
 	Downloader->OnDownloadProgress = OnProgress;
-	Downloader->OnDownloadComplete = OnComplete;
+	Downloader->OnChunkDownloadComplete = OnChunkComplete;
 	Downloader->OnAllChunksDownloadComplete = OnAllChunksDownloadComplete;
 	Downloader->DownloadFileToMemoryPerChunk(URL, Timeout, ContentType, MaxChunkSize);
 	return Downloader;
@@ -37,9 +37,9 @@ UFileToMemoryDownloader* UFileToMemoryDownloader::DownloadFileToMemoryPerChunk(c
 
 UFileToMemoryDownloader* UFileToMemoryDownloader::DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToMemoryDownloadComplete& OnComplete)
 {
-	return DownloadFileToMemory(URL, Timeout, ContentType, FOnDownloadProgressNative::CreateLambda([OnProgress](int64 BytesReceived, int64 ContentLength, float Progress)
+	return DownloadFileToMemory(URL, Timeout, ContentType, FOnDownloadProgressNative::CreateLambda([OnProgress](int64 BytesReceived, int64 ContentSize, float Progress)
 	{
-		OnProgress.ExecuteIfBound(BytesReceived, ContentLength, Progress);
+		OnProgress.ExecuteIfBound(BytesReceived, ContentSize, Progress);
 	}), FOnFileToMemoryDownloadCompleteNative::CreateLambda([OnComplete](const TArray64<uint8>& DownloadedContent, EDownloadToMemoryResult Result)
 	{
 		if (DownloadedContent.Num() > TNumericLimits<int32>::Max())
@@ -72,24 +72,12 @@ bool UFileToMemoryDownloader::CancelDownload()
 	return false;
 }
 
-void UFileToMemoryDownloader::BroadcastResult(const TArray64<uint8>& DownloadedContent, EDownloadToMemoryResult Result) const
-{
-	if (OnDownloadComplete.IsBound())
-	{
-		OnDownloadComplete.Execute(DownloadedContent, Result);
-	}
-	else
-	{
-		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You have not bound any delegates to get the result of the download"));
-	}
-}
-
 void UFileToMemoryDownloader::DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType)
 {
 	if (URL.IsEmpty())
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You have not provided an URL to download the file"));
-		BroadcastResult(TArray64<uint8>(), EDownloadToMemoryResult::InvalidURL);
+		OnDownloadComplete.ExecuteIfBound(TArray64<uint8>(), EDownloadToMemoryResult::InvalidURL);
 		RemoveFromRoot();
 		return;
 	}
@@ -101,13 +89,13 @@ void UFileToMemoryDownloader::DownloadFileToMemory(const FString& URL, float Tim
 	}
 
 	RuntimeChunkDownloaderPtr = MakeShared<FRuntimeChunkDownloader>();
-	RuntimeChunkDownloaderPtr->DownloadFile(URL, Timeout, ContentType, TNumericLimits<TArray<uint8>::SizeType>::Max(), [this](int64 BytesReceived, int64 ContentLength)
+	RuntimeChunkDownloaderPtr->DownloadFile(URL, Timeout, ContentType, TNumericLimits<TArray<uint8>::SizeType>::Max(), [this](int64 BytesReceived, int64 ContentSize)
 	{
-		BroadcastProgress(BytesReceived, ContentLength, static_cast<float>(BytesReceived) / ContentLength);
-	}).Next([this](TArray64<uint8> DownloadedContent) mutable
+		BroadcastProgress(BytesReceived, ContentSize, ContentSize <= 0 ? 0 : static_cast<float>(BytesReceived) / ContentSize);
+	}).Next([this](FRuntimeChunkDownloaderResult&& Result) mutable
 	{
 		RemoveFromRoot();
-		OnComplete_Internal(MoveTemp(DownloadedContent));
+		OnDownloadComplete.ExecuteIfBound(Result.Data, Result.Result);
 	});
 }
 
@@ -116,7 +104,7 @@ void UFileToMemoryDownloader::DownloadFileToMemoryPerChunk(const FString& URL, f
 	if (URL.IsEmpty())
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You have not provided an URL to download the file"));
-		BroadcastResult(TArray64<uint8>(), EDownloadToMemoryResult::InvalidURL);
+		OnDownloadComplete.ExecuteIfBound(TArray64<uint8>(), EDownloadToMemoryResult::InvalidURL);
 		RemoveFromRoot();
 		return;
 	}
@@ -128,25 +116,15 @@ void UFileToMemoryDownloader::DownloadFileToMemoryPerChunk(const FString& URL, f
 	}
 
 	RuntimeChunkDownloaderPtr = MakeShared<FRuntimeChunkDownloader>();
-	RuntimeChunkDownloaderPtr->DownloadFilePerChunk(URL, Timeout, ContentType, MaxChunkSize, FInt64Vector2(), [this](int64 BytesReceived, int64 ContentLength)
+	RuntimeChunkDownloaderPtr->DownloadFilePerChunk(URL, Timeout, ContentType, MaxChunkSize, FInt64Vector2(), [this](int64 BytesReceived, int64 ContentSize)
 	{
-		BroadcastProgress(BytesReceived, ContentLength, static_cast<float>(BytesReceived) / ContentLength);
+		BroadcastProgress(BytesReceived, ContentSize, ContentSize <= 0 ? 0 : static_cast<float>(BytesReceived) / ContentSize);
 	}, [this](TArray64<uint8> DownloadedContent)
 	{
-		OnComplete_Internal(MoveTemp(DownloadedContent));
-	}).Next([this](bool bSucceeded)
+		OnChunkDownloadComplete.ExecuteIfBound(DownloadedContent);
+	}).Next([this](EDownloadToMemoryResult Result)
 	{
 		RemoveFromRoot();
-		OnAllChunksDownloadComplete.ExecuteIfBound(bSucceeded);
+		OnAllChunksDownloadComplete.ExecuteIfBound(Result);
 	});
-}
-
-void UFileToMemoryDownloader::OnComplete_Internal(TArray64<uint8> DownloadedContent)
-{
-	if (!DownloadedContent.IsValidIndex(0))
-	{
-		BroadcastResult(TArray64<uint8>(), EDownloadToMemoryResult::DownloadFailed);
-		return;
-	}
-	BroadcastResult(DownloadedContent, EDownloadToMemoryResult::SuccessDownloading);
 }

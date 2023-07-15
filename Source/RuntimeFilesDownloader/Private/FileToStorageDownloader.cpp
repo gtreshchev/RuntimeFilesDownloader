@@ -2,6 +2,7 @@
 
 #include "FileToStorageDownloader.h"
 
+#include "FileToMemoryDownloader.h"
 #include "RuntimeChunkDownloader.h"
 #include "RuntimeFilesDownloaderDefines.h"
 #include "Misc/Paths.h"
@@ -11,9 +12,9 @@
 
 UFileToStorageDownloader* UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToStorageDownloadComplete& OnComplete)
 {
-	return DownloadFileToStorage(URL, SavePath, Timeout, ContentType, FOnDownloadProgressNative::CreateLambda([OnProgress](int64 BytesReceived, int64 ContentLength, float ProgressRatio)
+	return DownloadFileToStorage(URL, SavePath, Timeout, ContentType, FOnDownloadProgressNative::CreateLambda([OnProgress](int64 BytesReceived, int64 ContentSize, float ProgressRatio)
 	{
-		OnProgress.ExecuteIfBound(BytesReceived, ContentLength, ProgressRatio);
+		OnProgress.ExecuteIfBound(BytesReceived, ContentSize, ProgressRatio);
 	}), FOnFileToStorageDownloadCompleteNative::CreateLambda([OnComplete](EDownloadToStorageResult Result)
 	{
 		OnComplete.ExecuteIfBound(Result);
@@ -45,7 +46,7 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 	if (URL.IsEmpty())
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You have not provided an URL to download the file"));
-		BroadcastResult(EDownloadToStorageResult::InvalidURL);
+		OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::InvalidURL);
 		RemoveFromRoot();
 		return;
 	}
@@ -53,7 +54,7 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 	if (SavePath.IsEmpty())
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You have not provided a path to save the file"));
-		BroadcastResult(EDownloadToStorageResult::InvalidSavePath);
+		OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::InvalidSavePath);
 		RemoveFromRoot();
 		return;
 	}
@@ -69,33 +70,39 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 	RuntimeChunkDownloaderPtr = MakeShared<FRuntimeChunkDownloader>();
 	RuntimeChunkDownloaderPtr->DownloadFile(URL, Timeout, ContentType, TNumericLimits<TArray<uint8>::SizeType>::Max(), [this](int64 BytesReceived, int64 ContentSize)
 	{
-		BroadcastProgress(BytesReceived, ContentSize, static_cast<float>(BytesReceived) / ContentSize);
-	}).Next([this](TArray64<uint8> DownloadedContent) mutable
+		BroadcastProgress(BytesReceived, ContentSize, ContentSize <= 0 ? 0 : static_cast<float>(BytesReceived) / ContentSize);
+	}).Next([this](FRuntimeChunkDownloaderResult Result) mutable
 	{
-		OnComplete_Internal(MoveTemp(DownloadedContent));
+		OnComplete_Internal(Result.Result, Result.Data);
 	});
 }
 
-void UFileToStorageDownloader::BroadcastResult(EDownloadToStorageResult Result) const
-{
-	if (OnDownloadComplete.IsBound())
-	{
-		OnDownloadComplete.Execute(Result);
-	}
-	else
-	{
-		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You have not bound any delegates to get the result of the download"));
-	}
-}
-
-void UFileToStorageDownloader::OnComplete_Internal(TArray64<uint8> DownloadedContent)
+void UFileToStorageDownloader::OnComplete_Internal(EDownloadToMemoryResult Result, TArray64<uint8> DownloadedContent)
 {
 	RemoveFromRoot();
+
+	if (Result != EDownloadToMemoryResult::Success && Result != EDownloadToMemoryResult::SucceededByPayload)
+	{
+		// TODO: redesign in a more elegant way
+		switch (Result)
+		{
+		case EDownloadToMemoryResult::Cancelled:
+			OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::Cancelled);
+			break;
+		case EDownloadToMemoryResult::DownloadFailed:
+			OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::DownloadFailed);
+			break;
+		case EDownloadToMemoryResult::InvalidURL:
+			OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::InvalidURL);
+			break;
+		}
+		return;
+	}
 
 	if (!DownloadedContent.IsValidIndex(0))
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("An error occurred while downloading the file to storage"));
-		BroadcastResult(EDownloadToStorageResult::DownloadFailed);
+		OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::DownloadFailed);
 		return;
 	}
 
@@ -110,7 +117,7 @@ void UFileToStorageDownloader::OnComplete_Internal(TArray64<uint8> DownloadedCon
 			if (!PlatformFile.CreateDirectoryTree(*Path))
 			{
 				UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Unable to create a directory '%s' to save the downloaded file"), *Path);
-				BroadcastResult(EDownloadToStorageResult::DirectoryCreationFailed);
+				OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::DirectoryCreationFailed);
 				return;
 			}
 		}
@@ -123,7 +130,7 @@ void UFileToStorageDownloader::OnComplete_Internal(TArray64<uint8> DownloadedCon
 		if (!FileManager.Delete(*FileSavePath))
 		{
 			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Something went wrong while deleting the existing file '%s'"), *FileSavePath);
-			BroadcastResult(EDownloadToStorageResult::SaveFailed);
+			OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::SaveFailed);
 			return;
 		}
 	}
@@ -132,7 +139,7 @@ void UFileToStorageDownloader::OnComplete_Internal(TArray64<uint8> DownloadedCon
 	if (!FileHandle)
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Something went wrong while saving the file '%s'"), *FileSavePath);
-		BroadcastResult(EDownloadToStorageResult::SaveFailed);
+		OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::SaveFailed);
 		return;
 	}
 
@@ -140,10 +147,10 @@ void UFileToStorageDownloader::OnComplete_Internal(TArray64<uint8> DownloadedCon
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Something went wrong while writing the response data to the file '%s'"), *FileSavePath);
 		delete FileHandle;
-		BroadcastResult(EDownloadToStorageResult::SaveFailed);
+		OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::SaveFailed);
 		return;
 	}
 
 	delete FileHandle;
-	BroadcastResult(EDownloadToStorageResult::SuccessDownloading);
+	OnDownloadComplete.ExecuteIfBound(Result == EDownloadToMemoryResult::SucceededByPayload ? EDownloadToStorageResult::SucceededByPayload : EDownloadToStorageResult::Success);
 }

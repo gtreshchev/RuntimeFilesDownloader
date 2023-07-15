@@ -9,7 +9,10 @@
 UENUM(BlueprintType, Category = "File To Storage Downloader")
 enum class EDownloadToStorageResult : uint8
 {
-	SuccessDownloading UMETA(DisplayName = "Success"),
+	Success,
+	/** Downloaded successfully, but there was no Content-Length header in the response and thus downloaded by payload */
+	SucceededByPayload,
+	Cancelled,
 	DownloadFailed,
 	SaveFailed,
 	DirectoryCreationFailed,
@@ -78,14 +81,9 @@ protected:
 	void DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType);
 
 	/**
-	 * Broadcast the download result
-	 */
-	void BroadcastResult(EDownloadToStorageResult Result) const;
-
-	/**
 	 * Internal callback for when file downloading has finished
 	 */
-	void OnComplete_Internal(TArray64<uint8> DownloadedContent);
+	void OnComplete_Internal(EDownloadToMemoryResult Result, TArray64<uint8> DownloadedContent);
 
 protected:
 	/** The destination path to save the downloaded file */
