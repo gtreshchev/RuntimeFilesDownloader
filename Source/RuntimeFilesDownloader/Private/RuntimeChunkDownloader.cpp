@@ -73,8 +73,8 @@ TFuture<FRuntimeChunkDownloaderResult> FRuntimeChunkDownloader::DownloadFile(con
 
 		if (MaxChunkSize <= 0)
 		{
-			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: MaxChunkSize is <= 0"), *URL);
-			PromisePtr->SetValue(FRuntimeChunkDownloaderResult{EDownloadToMemoryResult::DownloadFailed, TArray64<uint8>()});
+			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: MaxChunkSize is <= 0. Trying to download the file by payload"), *URL);
+			DownloadByPayload();
 			return;
 		}
 
@@ -93,16 +93,16 @@ TFuture<FRuntimeChunkDownloaderResult> FRuntimeChunkDownloader::DownloadFile(con
 		TSharedPtr<int64> ChunkOffsetPtr = MakeShared<int64>(ChunkRange.X);
 		TSharedPtr<bool> bChunkDownloadedFilledPtr = MakeShared<bool>(false);
 
-		auto OnChunkDownloaded = [WeakThisPtr, PromisePtr, URL, ContentSize, Timeout, ContentType, OnProgress, DownloadByPayload, OverallDownloadedDataPtr, bChunkDownloadedFilledPtr, ChunkOffsetPtr](TArray64<uint8>&& ResultData) mutable
+		auto OnChunkDownloadedFilled = [bChunkDownloadedFilledPtr]()
 		{
-			auto OnChunkDownloadedFilled = [bChunkDownloadedFilledPtr]()
+			if (bChunkDownloadedFilledPtr.IsValid())
 			{
-				if (bChunkDownloadedFilledPtr.IsValid())
-				{
-					*bChunkDownloadedFilledPtr = true;
-				}
-			};
+				*bChunkDownloadedFilledPtr = true;
+			}
+		};
 
+		auto OnChunkDownloaded = [WeakThisPtr, PromisePtr, URL, ContentSize, Timeout, ContentType, OnProgress, DownloadByPayload, OverallDownloadedDataPtr, bChunkDownloadedFilledPtr, ChunkOffsetPtr, OnChunkDownloadedFilled](TArray64<uint8>&& ResultData) mutable
+		{
 			TSharedPtr<FRuntimeChunkDownloader> SharedThis = WeakThisPtr.Pin();
 			if (!SharedThis.IsValid())
 			{
@@ -127,7 +127,7 @@ TFuture<FRuntimeChunkDownloaderResult> FRuntimeChunkDownloader::DownloadFile(con
 			{
 				if (*ChunkOffsetPtr < 0 || *ChunkOffsetPtr >= OverallDownloadedDataPtr->Num())
 				{
-					UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: data offset is out of range (%lld, expected [0, %lld])"), *URL, *ChunkOffsetPtr, OverallDownloadedDataPtr->Num());
+					UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: data offset is out of range (%lld, expected [0, %lld]). Trying to download the file by payload"), *URL, *ChunkOffsetPtr, OverallDownloadedDataPtr->Num());
 					DownloadByPayload();
 					OnChunkDownloadedFilled();
 					return;
@@ -135,7 +135,7 @@ TFuture<FRuntimeChunkDownloaderResult> FRuntimeChunkDownloader::DownloadFile(con
 
 				if (CurrentlyDownloadedSize > OverallDownloadedDataPtr->Num())
 				{
-					UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: overall downloaded size is out of range (%lld, expected [0, %lld])"), *URL, CurrentlyDownloadedSize, OverallDownloadedDataPtr->Num());
+					UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: overall downloaded size is out of range (%lld, expected [0, %lld]). Trying to download the file by payload"), *URL, CurrentlyDownloadedSize, OverallDownloadedDataPtr->Num());
 					DownloadByPayload();
 					OnChunkDownloadedFilled();
 					return;
@@ -157,16 +157,18 @@ TFuture<FRuntimeChunkDownloaderResult> FRuntimeChunkDownloader::DownloadFile(con
 			*ChunkOffsetPtr += ResultData.Num();
 		};
 
-		SharedThis->DownloadFilePerChunk(URL, Timeout, ContentType, MaxChunkSize, ChunkRange, OnProgress, OnChunkDownloaded).Next([PromisePtr, bChunkDownloadedFilledPtr, URL, OverallDownloadedDataPtr](EDownloadToMemoryResult Result) mutable
+		SharedThis->DownloadFilePerChunk(URL, Timeout, ContentType, MaxChunkSize, ChunkRange, OnProgress, OnChunkDownloaded).Next([PromisePtr, bChunkDownloadedFilledPtr, URL, OverallDownloadedDataPtr, OnChunkDownloadedFilled, DownloadByPayload](EDownloadToMemoryResult Result) mutable
 		{
-			if (Result != EDownloadToMemoryResult::Success && Result != EDownloadToMemoryResult::SucceededByPayload)
-			{
-				UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file by chunk from %s"), *URL);
-			}
-
 			// Only return data if no chunk was downloaded
 			if (bChunkDownloadedFilledPtr.IsValid() && (*bChunkDownloadedFilledPtr.Get() == false))
 			{
+				if (Result != EDownloadToMemoryResult::Success && Result != EDownloadToMemoryResult::SucceededByPayload)
+				{
+					UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Failed to download file chunk from %s: download failed. Trying to download the file by payload"), *URL);
+					DownloadByPayload();
+					OnChunkDownloadedFilled();
+					return;
+				}
 				OverallDownloadedDataPtr->Shrink();
 				PromisePtr->SetValue(FRuntimeChunkDownloaderResult{Result, MoveTemp(*OverallDownloadedDataPtr.Get())});
 			}
