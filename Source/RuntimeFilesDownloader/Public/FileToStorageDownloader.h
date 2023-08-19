@@ -27,6 +27,8 @@ DECLARE_DELEGATE_OneParam(FOnFileToStorageDownloadCompleteNative, EDownloadToSto
 /** Dynamic delegate broadcast after the download is complete */
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnFileToStorageDownloadComplete, EDownloadToStorageResult, Result);
 
+enum class EDownloadToMemoryResult : uint8;
+
 /**
  * Downloads a file and saves it to permanent storage
  */
