@@ -49,11 +49,12 @@ public:
 	 * @param SavePath The absolute path and file name to save the downloaded file
 	 * @param Timeout The maximum time to wait for the download to complete, in seconds. Works only for engine versions >= 4.26
 	 * @param ContentType A string to set in the Content-Type header field. Use a MIME type to specify the file type
-	 * @param OnProgress A delegate that will be called to broadcast the download progress
-	 * @param OnComplete A delegate that will be called to broadcast that the download is complete
+	 * @param bForceByPayload If true, download the file regardless of the Content-Length header's presence (useful for servers without support for this header)
+	 * @param OnProgress Delegate for download progress updates
+	 * @param OnComplete Delegate for broadcasting the completion of the download
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader|Storage")
-	static UFileToStorageDownloader* DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToStorageDownloadComplete& OnComplete);
+	static UFileToStorageDownloader* DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, bool bForceByPayload, const FOnDownloadProgress& OnProgress, const FOnFileToStorageDownloadComplete& OnComplete);
 
 	/**
 	 * Download the file and save it to storage. Suitable for use in C++
@@ -62,10 +63,11 @@ public:
 	 * @param SavePath The absolute path and file name to save the downloaded file
 	 * @param Timeout The maximum time to wait for the download to complete, in seconds. Works only for engine versions >= 4.26
 	 * @param ContentType A string to set in the Content-Type header field. Use a MIME type to specify the file type
-	 * @param OnProgress A delegate that will be called to broadcast the download progress
-	 * @param OnComplete A delegate that will be called to broadcast that the download is complete
+	 * @param bForceByPayload If true, download the file regardless of the Content-Length header's presence (useful for servers without support for this header)
+	 * @param OnProgress Delegate for download progress updates
+	 * @param OnComplete Delegate for broadcasting the completion of the download
 	 */
-	static UFileToStorageDownloader* DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, const FOnDownloadProgressNative& OnProgress, const FOnFileToStorageDownloadCompleteNative& OnComplete);
+	static UFileToStorageDownloader* DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, bool bForceByPayload, const FOnDownloadProgressNative& OnProgress, const FOnFileToStorageDownloadCompleteNative& OnComplete);
 
 	//~ Begin UBaseFilesDownloader Interface
 	virtual bool CancelDownload() override;
@@ -79,8 +81,9 @@ protected:
 	 * @param SavePath The absolute path and file name to save the downloaded file
 	 * @param Timeout The maximum time to wait for the download to complete, in seconds. Works only for engine versions >= 4.26
 	 * @param ContentType A string to set in the Content-Type header field. Use a MIME type to specify the file type
+	 * @param bForceByPayload If true, the file will be downloaded by payload even if the Content-Length header is present in the response
 	 */
-	void DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType);
+	void DownloadFileToStorage(const FString& URL, const FString& SavePath, float Timeout, const FString& ContentType, bool bForceByPayload);
 
 	/**
 	 * Internal callback for when file downloading has finished

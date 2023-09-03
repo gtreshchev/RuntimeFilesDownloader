@@ -62,11 +62,12 @@ public:
 	 * @param URL The URL of the file to be downloaded
 	 * @param Timeout The maximum time to wait for the download to complete, in seconds. Works only for engine versions >= 4.26
 	 * @param ContentType A string to set in the Content-Type header field. Use a MIME type to specify the file type
-	 * @param OnProgress A delegate that will be called to broadcast the download progress
+	 * @param bForceByPayload If true, download the file regardless of the Content-Length header's presence (useful for servers without support for this header)
+	 * @param OnProgress Delegate for download progress updates
 	 * @param OnComplete Delegate for broadcasting the completion of the download
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Runtime Files Downloader|Memory")
-	static UFileToMemoryDownloader* DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgress& OnProgress, const FOnFileToMemoryDownloadComplete& OnComplete);
+	static UFileToMemoryDownloader* DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, bool bForceByPayload, const FOnDownloadProgress& OnProgress, const FOnFileToMemoryDownloadComplete& OnComplete);
 
 	/**
 	 * Download the file and save it as a byte array in temporary memory (RAM). Suitable for use in C++
@@ -74,10 +75,11 @@ public:
 	 * @param URL The URL of the file to be downloaded
 	 * @param Timeout The maximum time to wait for the download to complete, in seconds. Works only for engine versions >= 4.26
 	 * @param ContentType A string to set in the Content-Type header field. Use a MIME type to specify the file type
-	 * @param OnProgress A delegate that will be called to broadcast the download progress
-	 * @param OnComplete A delegate that will be called to broadcast that the download is complete
+	 * @param bForceByPayload If true, download the file regardless of the Content-Length header's presence (useful for servers without support for this header)
+	 * @param OnProgress Delegate for download progress updates
+	 * @param OnComplete Delegate for broadcasting the completion of the download
 	 */
-	static UFileToMemoryDownloader* DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, const FOnDownloadProgressNative& OnProgress, const FOnFileToMemoryDownloadCompleteNative& OnComplete);
+	static UFileToMemoryDownloader* DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, bool bForceByPayload, const FOnDownloadProgressNative& OnProgress, const FOnFileToMemoryDownloadCompleteNative& OnComplete);
 
 	/**
 	 * Download the file and save it as a byte array in temporary memory (RAM). Continuously broadcasts the download result per chunk
@@ -86,7 +88,7 @@ public:
 	 * @param Timeout The maximum time to wait for the download to complete, in seconds. Works only for engine versions >= 4.26
 	 * @param ContentType A string to set in the Content-Type header field. Use a MIME type to specify the file type
 	 * @param MaxChunkSize The maximum size of each chunk to download in bytes
-	 * @param OnProgress A delegate that will be called to broadcast the download progress
+	 * @param OnProgress Delegate for download progress updates
 	 * @param OnChunkDownloadComplete Delegate for broadcasting the completion of the download. Will be called for each chunk
 	 * @param OnAllChunksDownloadComplete Delegate for broadcasting the completion of the download of all chunks
 	 */
@@ -100,7 +102,7 @@ public:
 	 * @param Timeout The maximum time to wait for the download to complete, in seconds. Works only for engine versions >= 4.26
 	 * @param ContentType A string to set in the Content-Type header field. Use a MIME type to specify the file type
 	 * @param MaxChunkSize The maximum size of each chunk to download in bytes
-	 * @param OnProgress A delegate that will be called to broadcast the download progress
+	 * @param OnProgress Delegate for download progress updates
 	 * @param OnChunkDownloadComplete Delegate for broadcasting the completion of the download. Will be called for each chunk
 	 * @param OnAllChunksDownloadComplete Delegate for broadcasting the completion of the download of all chunks
 	 */
@@ -117,8 +119,9 @@ protected:
 	 * @param URL The URL of the file to be downloaded
 	 * @param Timeout The maximum time to wait for the download to complete, in seconds. Works only for engine versions >= 4.26
 	 * @param ContentType A string to set in the Content-Type header field. Use a MIME type to specify the file type
+	 * @param bForceByPayload If true, download the file regardless of the Content-Length header's presence (useful for servers without support for this header)
 	 */
-	void DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType);
+	void DownloadFileToMemory(const FString& URL, float Timeout, const FString& ContentType, bool bForceByPayload);
 
 	/**
 	 * Download the file and save it as a byte array in temporary memory (RAM). Continuously broadcasts the download result per chunk. Suitable for use in C++
