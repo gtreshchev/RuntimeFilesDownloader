@@ -1,4 +1,4 @@
-// Georgy Treshchev 2023.
+// Georgy Treshchev 2024.
 
 #include "FileToStorageDownloader.h"
 
@@ -15,9 +15,9 @@ UFileToStorageDownloader* UFileToStorageDownloader::DownloadFileToStorage(const 
 	return DownloadFileToStorage(URL, SavePath, Timeout, ContentType, bForceByPayload, FOnDownloadProgressNative::CreateLambda([OnProgress](int64 BytesReceived, int64 ContentSize, float ProgressRatio)
 	{
 		OnProgress.ExecuteIfBound(BytesReceived, ContentSize, ProgressRatio);
-	}), FOnFileToStorageDownloadCompleteNative::CreateLambda([OnComplete](EDownloadToStorageResult Result)
+	}), FOnFileToStorageDownloadCompleteNative::CreateLambda([OnComplete](EDownloadToStorageResult Result, FString FileLocation)
 	{
-		OnComplete.ExecuteIfBound(Result);
+		OnComplete.ExecuteIfBound(Result, FileLocation);
 	}));
 }
 
@@ -46,7 +46,7 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 	if (URL.IsEmpty())
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You have not provided an URL to download the file"));
-		OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::InvalidURL);
+		OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::InvalidURL, SavePath);
 		RemoveFromRoot();
 		return;
 	}
@@ -54,7 +54,7 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 	if (SavePath.IsEmpty())
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You have not provided a path to save the file"));
-		OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::InvalidSavePath);
+		OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::InvalidSavePath, SavePath);
 		RemoveFromRoot();
 		return;
 	}
@@ -65,6 +65,8 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 		Timeout = 0;
 	}
 
+	FileSavePath = SavePath;
+
 	auto OnProgress = [this](int64 BytesReceived, int64 ContentSize)
 	{
 		BroadcastProgress(BytesReceived, ContentSize, ContentSize <= 0 ? 0 : static_cast<float>(BytesReceived) / ContentSize);
@@ -72,10 +74,9 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 
 	auto OnResult = [this](FRuntimeChunkDownloaderResult&& Result) mutable
 	{
-		OnComplete_Internal(Result.Result, MoveTemp(Result.Data));
+		OnComplete_Internal(Result.Result, MoveTemp(Result.Data), FileSavePath);
 	};
 
-	FileSavePath = SavePath;
 	RuntimeChunkDownloaderPtr = MakeShared<FRuntimeChunkDownloader>();
 
 	if (bForceByPayload)
@@ -88,7 +89,7 @@ void UFileToStorageDownloader::DownloadFileToStorage(const FString& URL, const F
 	}
 }
 
-void UFileToStorageDownloader::OnComplete_Internal(EDownloadToMemoryResult Result, TArray64<uint8> DownloadedContent)
+void UFileToStorageDownloader::OnComplete_Internal(EDownloadToMemoryResult Result, TArray64<uint8> DownloadedContent, FString FileLocation)
 {
 	RemoveFromRoot();
 
@@ -98,13 +99,13 @@ void UFileToStorageDownloader::OnComplete_Internal(EDownloadToMemoryResult Resul
 		switch (Result)
 		{
 		case EDownloadToMemoryResult::Cancelled:
-			OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::Cancelled);
+			OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::Cancelled, FileLocation);
 			break;
 		case EDownloadToMemoryResult::DownloadFailed:
-			OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::DownloadFailed);
+			OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::DownloadFailed, FileLocation);
 			break;
 		case EDownloadToMemoryResult::InvalidURL:
-			OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::InvalidURL);
+			OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::InvalidURL, FileLocation);
 			break;
 		}
 		return;
@@ -113,7 +114,7 @@ void UFileToStorageDownloader::OnComplete_Internal(EDownloadToMemoryResult Resul
 	if (!DownloadedContent.IsValidIndex(0))
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("An error occurred while downloading the file to storage"));
-		OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::DownloadFailed);
+		OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::DownloadFailed, FileLocation);
 		return;
 	}
 
@@ -128,7 +129,7 @@ void UFileToStorageDownloader::OnComplete_Internal(EDownloadToMemoryResult Resul
 			if (!PlatformFile.CreateDirectoryTree(*Path))
 			{
 				UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Unable to create a directory '%s' to save the downloaded file"), *Path);
-				OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::DirectoryCreationFailed);
+				OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::DirectoryCreationFailed, FileLocation);
 				return;
 			}
 		}
@@ -141,7 +142,7 @@ void UFileToStorageDownloader::OnComplete_Internal(EDownloadToMemoryResult Resul
 		if (!FileManager.Delete(*FileSavePath))
 		{
 			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Something went wrong while deleting the existing file '%s'"), *FileSavePath);
-			OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::SaveFailed);
+			OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::SaveFailed, FileLocation);
 			return;
 		}
 	}
@@ -150,7 +151,7 @@ void UFileToStorageDownloader::OnComplete_Internal(EDownloadToMemoryResult Resul
 	if (!FileHandle)
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Something went wrong while saving the file '%s'"), *FileSavePath);
-		OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::SaveFailed);
+		OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::SaveFailed, FileLocation);
 		return;
 	}
 
@@ -158,10 +159,10 @@ void UFileToStorageDownloader::OnComplete_Internal(EDownloadToMemoryResult Resul
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Something went wrong while writing the response data to the file '%s'"), *FileSavePath);
 		delete FileHandle;
-		OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::SaveFailed);
+		OnDownloadComplete.ExecuteIfBound(EDownloadToStorageResult::SaveFailed, FileLocation);
 		return;
 	}
 
 	delete FileHandle;
-	OnDownloadComplete.ExecuteIfBound(Result == EDownloadToMemoryResult::SucceededByPayload ? EDownloadToStorageResult::SucceededByPayload : EDownloadToStorageResult::Success);
+	OnDownloadComplete.ExecuteIfBound(Result == EDownloadToMemoryResult::SucceededByPayload ? EDownloadToStorageResult::SucceededByPayload : EDownloadToStorageResult::Success, FileLocation);
 }
