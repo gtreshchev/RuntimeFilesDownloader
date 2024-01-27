@@ -22,10 +22,10 @@ enum class EDownloadToStorageResult : uint8
 
 
 /** Static delegate broadcast after the download is complete */
-DECLARE_DELEGATE_TwoParams(FOnFileToStorageDownloadCompleteNative, EDownloadToStorageResult, FString);
+DECLARE_DELEGATE_TwoParams(FOnFileToStorageDownloadCompleteNative, EDownloadToStorageResult, const FString&);
 
 /** Dynamic delegate broadcast after the download is complete */
-DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnFileToStorageDownloadComplete, EDownloadToStorageResult, Result, FString, FileLocation);
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnFileToStorageDownloadComplete, EDownloadToStorageResult, Result, const FString&, SavedPath);
 
 enum class EDownloadToMemoryResult : uint8;
 
@@ -88,7 +88,7 @@ protected:
 	/**
 	 * Internal callback for when file downloading has finished
 	 */
-	void OnComplete_Internal(EDownloadToMemoryResult Result, TArray64<uint8> DownloadedContent, FString FileLocation);
+	void OnComplete_Internal(EDownloadToMemoryResult Result, TArray64<uint8> DownloadedContent);
 
 protected:
 	/** The destination path to save the downloaded file */
