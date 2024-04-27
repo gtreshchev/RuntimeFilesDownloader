@@ -14,7 +14,7 @@ FRuntimeChunkDownloader::~FRuntimeChunkDownloader()
 	UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("FRuntimeChunkDownloader destroyed"));
 }
 
-TFuture<FRuntimeChunkDownloaderResult> FRuntimeChunkDownloader::DownloadFile(const FString& URL, float Timeout, const FString& ContentType, int64 MaxChunkSize, const TFunction<void(int64, int64)>& OnProgress)
+TFuture<FRuntimeChunkDownloaderResult> FRuntimeChunkDownloader::DownloadFile(const FString& URL, float Timeout, const FString& ContentType, int64 MaxChunkSize, const FOnProgress& OnProgress)
 {
 	if (bCanceled)
 	{
@@ -112,6 +112,14 @@ TFuture<FRuntimeChunkDownloaderResult> FRuntimeChunkDownloader::DownloadFile(con
 				return;
 			}
 
+			if (ResultData.Num() <= 0)
+			{
+				UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Failed to download file chunk from %s: result data is empty"), *URL);
+				PromisePtr->SetValue(FRuntimeChunkDownloaderResult{EDownloadToMemoryResult::DownloadFailed, TArray64<uint8>()});
+				OnChunkDownloadedFilled();
+				return;
+			}
+
 			if (SharedThis->bCanceled)
 			{
 				UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Canceled file chunk download from %s"), *URL);
@@ -177,7 +185,7 @@ TFuture<FRuntimeChunkDownloaderResult> FRuntimeChunkDownloader::DownloadFile(con
 	return PromisePtr->GetFuture();
 }
 
-TFuture<EDownloadToMemoryResult> FRuntimeChunkDownloader::DownloadFilePerChunk(const FString& URL, float Timeout, const FString& ContentType, int64 MaxChunkSize, FInt64Vector2 ChunkRange, const TFunction<void(int64, int64)>& OnProgress, const TFunction<void(TArray64<uint8>&&)>& OnChunkDownloaded)
+TFuture<EDownloadToMemoryResult> FRuntimeChunkDownloader::DownloadFilePerChunk(const FString& URL, float Timeout, const FString& ContentType, int64 MaxChunkSize, FInt64Vector2 ChunkRange, const FOnProgress& OnProgress, const FOnChunkDownloaded& OnChunkDownloaded)
 {
 	if (bCanceled)
 	{
@@ -322,7 +330,7 @@ TFuture<EDownloadToMemoryResult> FRuntimeChunkDownloader::DownloadFilePerChunk(c
 	return PromisePtr->GetFuture();
 }
 
-TFuture<FRuntimeChunkDownloaderResult> FRuntimeChunkDownloader::DownloadFileByChunk(const FString& URL, float Timeout, const FString& ContentType, int64 ContentSize, FInt64Vector2 ChunkRange, const TFunction<void(int64, int64)>& OnProgress)
+TFuture<FRuntimeChunkDownloaderResult> FRuntimeChunkDownloader::DownloadFileByChunk(const FString& URL, float Timeout, const FString& ContentType, int64 ContentSize, FInt64Vector2 ChunkRange, const FOnProgress& OnProgress)
 {
 	if (bCanceled)
 	{
@@ -367,13 +375,18 @@ TFuture<FRuntimeChunkDownloaderResult> FRuntimeChunkDownloader::DownloadFileByCh
 	const FString RangeHeaderValue = FString::Format(TEXT("bytes={0}-{1}"), {ChunkRange.X, ChunkRange.Y});
 	HttpRequestRef->SetHeader(TEXT("Range"), RangeHeaderValue);
 
-	HttpRequestRef->OnRequestProgress().BindLambda([WeakThisPtr, ContentSize, ChunkRange, OnProgress](FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived)
+	HttpRequestRef->
+#if UE_VERSION_OLDER_THAN(5, 4, 0)
+		OnRequestProgress().BindLambda([WeakThisPtr, ContentSize, ChunkRange, OnProgress](FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived)
+#else
+		OnRequestProgress64().BindLambda([WeakThisPtr, ContentSize, ChunkRange, OnProgress](FHttpRequestPtr Request, uint64 BytesSent, uint64 BytesReceived)
+#endif
 	{
 		TSharedPtr<FRuntimeChunkDownloader> SharedThis = WeakThisPtr.Pin();
 		if (SharedThis.IsValid())
 		{
 			const float Progress = ContentSize <= 0 ? 0.0f : static_cast<float>(BytesReceived) / ContentSize;
-			UE_LOG(LogRuntimeFilesDownloader, Log, TEXT("Downloaded %d bytes of file chunk from %s. Range: {%lld; %lld}, Overall: %lld, Progress: %f"), BytesReceived, *Request->GetURL(), ChunkRange.X, ChunkRange.Y, ContentSize, Progress);
+			UE_LOG(LogRuntimeFilesDownloader, Log, TEXT("Downloaded %lld bytes of file chunk from %s. Range: {%lld; %lld}, Overall: %lld, Progress: %f"), static_cast<int64>(BytesReceived), *Request->GetURL(), ChunkRange.X, ChunkRange.Y, ContentSize, Progress);
 			OnProgress(BytesReceived, ContentSize);
 		}
 	});
@@ -433,7 +446,7 @@ TFuture<FRuntimeChunkDownloaderResult> FRuntimeChunkDownloader::DownloadFileByCh
 	return PromisePtr->GetFuture();
 }
 
-TFuture<FRuntimeChunkDownloaderResult> FRuntimeChunkDownloader::DownloadFileByPayload(const FString& URL, float Timeout, const FString& ContentType, const TFunction<void(int64, int64)>& OnProgress)
+TFuture<FRuntimeChunkDownloaderResult> FRuntimeChunkDownloader::DownloadFileByPayload(const FString& URL, float Timeout, const FString& ContentType, const FOnProgress& OnProgress)
 {
 	if (bCanceled)
 	{
@@ -458,14 +471,19 @@ TFuture<FRuntimeChunkDownloaderResult> FRuntimeChunkDownloader::DownloadFileByPa
 	UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("The Timeout feature is only supported in engine version 4.26 or later. Please update your engine to use this feature"));
 #endif
 
-	HttpRequestRef->OnRequestProgress().BindLambda([WeakThisPtr, OnProgress](FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived)
+	HttpRequestRef->
+#if UE_VERSION_OLDER_THAN(5, 4, 0)
+		OnRequestProgress().BindLambda([WeakThisPtr, OnProgress](FHttpRequestPtr Request, int32 BytesSent, int32 BytesReceived)
+#else
+		OnRequestProgress64().BindLambda([WeakThisPtr, OnProgress](FHttpRequestPtr Request, uint64 BytesSent, uint64 BytesReceived)
+#endif
 	{
 		TSharedPtr<FRuntimeChunkDownloader> SharedThis = WeakThisPtr.Pin();
 		if (SharedThis.IsValid())
 		{
 			const int64 ContentLength = Request->GetContentLength();
 			const float Progress = ContentLength <= 0 ? 0.0f : static_cast<float>(BytesReceived) / ContentLength;
-			UE_LOG(LogRuntimeFilesDownloader, Log, TEXT("Downloaded %d bytes of file chunk from %s by payload. Overall: %lld, Progress: %f"), BytesReceived, *Request->GetURL(), static_cast<int64>(Request->GetContentLength()), Progress);
+			UE_LOG(LogRuntimeFilesDownloader, Log, TEXT("Downloaded %lld bytes of file chunk from %s by payload. Overall: %lld, Progress: %f"), static_cast<int64>(BytesReceived), *Request->GetURL(), static_cast<int64>(Request->GetContentLength()), Progress);
 			OnProgress(BytesReceived, ContentLength);
 		}
 	});
