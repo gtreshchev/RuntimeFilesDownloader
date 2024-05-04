@@ -26,7 +26,7 @@
 
 ## Features
 
-- Support for downloading files larger than 2GB
+- Extends file size limit beyond UE's 2GB constraint (signed 64-bit integer limit)
 - Chunk-based content downloading
 - No any third party libraries and external dependencies
 - Support for all available devices (Android, iOS, Windows, Mac, Linux, etc)
