@@ -40,15 +40,15 @@ UFileToMemoryDownloader* UFileToMemoryDownloader::DownloadFileToMemory(const FSt
 	return DownloadFileToMemory(URL, Timeout, ContentType, bForceByPayload, FOnDownloadProgressNative::CreateLambda([OnProgress](int64 BytesReceived, int64 ContentSize, float Progress)
 	{
 		OnProgress.ExecuteIfBound(BytesReceived, ContentSize, Progress);
-	}), FOnFileToMemoryDownloadCompleteNative::CreateLambda([OnComplete](const TArray64<uint8>& DownloadedContent, EDownloadToMemoryResult Result)
+	}), FOnFileToMemoryDownloadCompleteNative::CreateLambda([OnComplete](const TArray64<uint8>& DownloadedContent, EDownloadToMemoryResult Result, UFileToMemoryDownloader* Downloader)
 	{
 		if (DownloadedContent.Num() > TNumericLimits<int32>::Max())
 		{
 			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("The size of the downloaded content exceeds the maximum limit for an int32 array. Maximum length: %d, Retrieved length: %lld\nA standard byte array can hold a maximum of 2 GB of data. If you need to download more than 2 GB of data into memory, consider using the C++ native equivalent instead of the Blueprint dynamic delegate"), TNumericLimits<int32>::Max(), DownloadedContent.Num());
-			OnComplete.ExecuteIfBound(TArray<uint8>(), EDownloadToMemoryResult::DownloadFailed);
+			OnComplete.ExecuteIfBound(TArray<uint8>(), EDownloadToMemoryResult::DownloadFailed, Downloader);
 			return;
 		}
-		OnComplete.ExecuteIfBound(TArray<uint8>(DownloadedContent), Result);
+		OnComplete.ExecuteIfBound(TArray<uint8>(DownloadedContent), Result, Downloader);
 	}));
 }
 
@@ -77,7 +77,7 @@ void UFileToMemoryDownloader::DownloadFileToMemory(const FString& URL, float Tim
 	if (URL.IsEmpty())
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You have not provided an URL to download the file"));
-		OnDownloadComplete.ExecuteIfBound(TArray64<uint8>(), EDownloadToMemoryResult::InvalidURL);
+		OnDownloadComplete.ExecuteIfBound(TArray64<uint8>(), EDownloadToMemoryResult::InvalidURL, this);
 		RemoveFromRoot();
 		return;
 	}
@@ -96,7 +96,7 @@ void UFileToMemoryDownloader::DownloadFileToMemory(const FString& URL, float Tim
 	auto OnResult = [this](FRuntimeChunkDownloaderResult&& Result) mutable
 	{
 		RemoveFromRoot();
-		OnDownloadComplete.ExecuteIfBound(Result.Data, Result.Result);
+		OnDownloadComplete.ExecuteIfBound(Result.Data, Result.Result, this);
 	};
 
 	RuntimeChunkDownloaderPtr = MakeShared<FRuntimeChunkDownloader>();
@@ -115,7 +115,7 @@ void UFileToMemoryDownloader::DownloadFileToMemoryPerChunk(const FString& URL, f
 	if (URL.IsEmpty())
 	{
 		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("You have not provided an URL to download the file"));
-		OnDownloadComplete.ExecuteIfBound(TArray64<uint8>(), EDownloadToMemoryResult::InvalidURL);
+		OnDownloadComplete.ExecuteIfBound(TArray64<uint8>(), EDownloadToMemoryResult::InvalidURL, this);
 		RemoveFromRoot();
 		return;
 	}

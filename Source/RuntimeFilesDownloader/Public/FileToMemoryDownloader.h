@@ -5,6 +5,8 @@
 #include "BaseFilesDownloader.h"
 #include "FileToMemoryDownloader.generated.h"
 
+class UFileToMemoryDownloader;
+
 /**
 * Possible results from a download request
 */
@@ -20,10 +22,10 @@ enum class EDownloadToMemoryResult : uint8
 };
 
 /** Static delegate to track download completion */
-DECLARE_DELEGATE_TwoParams(FOnFileToMemoryDownloadCompleteNative, const TArray64<uint8>&, EDownloadToMemoryResult);
+DECLARE_DELEGATE_ThreeParams(FOnFileToMemoryDownloadCompleteNative, const TArray64<uint8>&, EDownloadToMemoryResult, UFileToMemoryDownloader*);
 
 /** Dynamic delegate to track download completion */
-DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnFileToMemoryDownloadComplete, const TArray<uint8>&, DownloadedContent, EDownloadToMemoryResult, Result);
+DECLARE_DYNAMIC_DELEGATE_ThreeParams(FOnFileToMemoryDownloadComplete, const TArray<uint8>&, DownloadedContent, EDownloadToMemoryResult, Result, UFileToMemoryDownloader*, Downloader);
 
 /** Static delegate to track chunk download completion */
 DECLARE_DELEGATE_OneParam(FOnFileToMemoryChunkDownloadCompleteNative, const TArray64<uint8>&);

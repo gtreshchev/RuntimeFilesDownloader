@@ -5,6 +5,8 @@
 #include "BaseFilesDownloader.h"
 #include "FileToStorageDownloader.generated.h"
 
+class UFileToStorageDownloader;
+
 /** Possible results from a download request */
 UENUM(BlueprintType, Category = "File To Storage Downloader")
 enum class EDownloadToStorageResult : uint8
@@ -22,10 +24,10 @@ enum class EDownloadToStorageResult : uint8
 
 
 /** Static delegate broadcast after the download is complete */
-DECLARE_DELEGATE_TwoParams(FOnFileToStorageDownloadCompleteNative, EDownloadToStorageResult, const FString&);
+DECLARE_DELEGATE_ThreeParams(FOnFileToStorageDownloadCompleteNative, EDownloadToStorageResult, const FString&, UFileToStorageDownloader*);
 
 /** Dynamic delegate broadcast after the download is complete */
-DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnFileToStorageDownloadComplete, EDownloadToStorageResult, Result, const FString&, SavedPath);
+DECLARE_DYNAMIC_DELEGATE_ThreeParams(FOnFileToStorageDownloadComplete, EDownloadToStorageResult, Result, const FString&, SavedPath, UFileToStorageDownloader*, Downloader);
 
 enum class EDownloadToMemoryResult : uint8;
 
