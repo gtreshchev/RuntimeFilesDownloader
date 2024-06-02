@@ -28,8 +28,8 @@
 
 - Extends file size limit beyond UE's 2GB constraint (signed 64-bit integer limit)
 - Chunk-based content downloading
-- No any third party libraries and external dependencies
-- Support for all available devices (Android, iOS, Windows, Mac, Linux, etc)
+- No third party libraries and external dependencies
+- Cross-platform compatibility (Windows, Mac, Linux, Android, iOS, etc)
 
 ## Legal info
 
