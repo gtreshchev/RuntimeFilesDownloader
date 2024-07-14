@@ -9,18 +9,18 @@ UFileToMemoryDownloader* UFileToMemoryDownloader::DownloadFileToMemoryPerChunk(c
 	return DownloadFileToMemoryPerChunk(URL, Timeout, ContentType, MaxChunkSize, FOnDownloadProgressNative::CreateLambda([OnProgress](int64 BytesReceived, int64 ContentSize, float Progress)
 	{
 		OnProgress.ExecuteIfBound(BytesReceived, ContentSize, Progress);
-	}), FOnFileToMemoryChunkDownloadCompleteNative::CreateLambda([OnChunkComplete](const TArray64<uint8>& DownloadedContent)
+	}), FOnFileToMemoryChunkDownloadCompleteNative::CreateLambda([OnChunkComplete](const TArray64<uint8>& DownloadedContent, UFileToMemoryDownloader* Downloader)
 	{
 		if (DownloadedContent.Num() > TNumericLimits<int32>::Max())
 		{
 			UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("The size of the downloaded content exceeds the maximum limit for an int32 array. Maximum length: %d, Retrieved length: %lld\nA standard byte array can hold a maximum of 2 GB of data. If you need to download more than 2 GB of data into memory, consider using the C++ native equivalent instead of the Blueprint dynamic delegate"), TNumericLimits<int32>::Max(), DownloadedContent.Num());
-			OnChunkComplete.ExecuteIfBound(TArray<uint8>());
+			OnChunkComplete.ExecuteIfBound(TArray<uint8>(), Downloader);
 			return;
 		}
-		OnChunkComplete.ExecuteIfBound(TArray<uint8>(DownloadedContent));
-	}), FOnFileToMemoryAllChunksDownloadCompleteNative::CreateLambda([OnAllChunksDownloadComplete](EDownloadToMemoryResult Result)
+		OnChunkComplete.ExecuteIfBound(TArray<uint8>(DownloadedContent), Downloader);
+	}), FOnFileToMemoryAllChunksDownloadCompleteNative::CreateLambda([OnAllChunksDownloadComplete](EDownloadToMemoryResult Result, UFileToMemoryDownloader* Downloader)
 	{
-		OnAllChunksDownloadComplete.ExecuteIfBound(Result);
+		OnAllChunksDownloadComplete.ExecuteIfBound(Result, Downloader);
 	}));
 }
 
@@ -132,10 +132,10 @@ void UFileToMemoryDownloader::DownloadFileToMemoryPerChunk(const FString& URL, f
 		BroadcastProgress(BytesReceived, ContentSize, ContentSize <= 0 ? 0 : static_cast<float>(BytesReceived) / ContentSize);
 	}, [this](TArray64<uint8> DownloadedContent)
 	{
-		OnChunkDownloadComplete.ExecuteIfBound(DownloadedContent);
+		OnChunkDownloadComplete.ExecuteIfBound(DownloadedContent, this);
 	}).Next([this](EDownloadToMemoryResult Result)
 	{
 		RemoveFromRoot();
-		OnAllChunksDownloadComplete.ExecuteIfBound(Result);
+		OnAllChunksDownloadComplete.ExecuteIfBound(Result, this);
 	});
 }

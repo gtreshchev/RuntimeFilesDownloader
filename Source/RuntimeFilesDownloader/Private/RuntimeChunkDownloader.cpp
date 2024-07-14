@@ -5,6 +5,13 @@
 #include "FileToMemoryDownloader.h"
 #include "RuntimeFilesDownloaderDefines.h"
 
+#if PLATFORM_ANDROID
+#include "Async/Future.h"
+#include "AndroidPermissionFunctionLibrary.h"
+#include "AndroidPermissionCallbackProxy.h"
+#include "Android/AndroidPlatformMisc.h"
+#endif
+
 FRuntimeChunkDownloader::FRuntimeChunkDownloader()
 	: bCanceled(false)
 {}
@@ -598,4 +605,84 @@ void FRuntimeChunkDownloader::CancelDownload()
 		HttpRequest->CancelRequest();
 	}
 	UE_LOG(LogRuntimeFilesDownloader, Warning, TEXT("Download canceled"));
+}
+
+TFuture<bool> FRuntimeChunkDownloader::CheckAndRequestPermissions()
+{
+#if PLATFORM_ANDROID
+	TArray<FString> AllRequiredPermissions = []()
+	{
+		TArray<FString> InternalPermissions = {TEXT("android.permission.READ_EXTERNAL_STORAGE"), TEXT("android.permission.WRITE_EXTERNAL_STORAGE")};
+		if (FAndroidMisc::GetAndroidBuildVersion() >= 33)
+		{
+			InternalPermissions.Append(TArray<FString>{TEXT("android.permission.READ_MEDIA_AUDIO"), TEXT("android.permission.READ_MEDIA_VIDEO"), TEXT("android.permission.READ_MEDIA_IMAGES")});
+		}
+		return InternalPermissions;
+	}();
+
+	TArray<FString> UngrantedPermissions;
+	for (const FString& Permission : AllRequiredPermissions)
+	{
+		if (!UAndroidPermissionFunctionLibrary::CheckPermission(Permission))
+		{
+			UngrantedPermissions.Add(Permission);
+			UE_LOG(LogRuntimeFilesDownloader, Log, TEXT("Permission '%s' is not granted on Android. Requesting permission..."), *Permission);
+		}
+		else
+		{
+			UE_LOG(LogRuntimeFilesDownloader, Log, TEXT("Permission '%s' is granted on Android. No need to request permission"), *Permission);
+		}
+	}
+
+	if (UngrantedPermissions.Num() == 0)
+	{
+		UE_LOG(LogRuntimeFilesDownloader, Log, TEXT("All required permissions are granted on Android. No need to request permissions"));
+		return MakeFulfilledPromise<bool>(true).GetFuture();
+	}
+
+	TSharedRef<TPromise<bool>> bPermissionGrantedPromise = MakeShared<TPromise<bool>>();
+	TFuture<bool> bPermissionGrantedFuture = bPermissionGrantedPromise->GetFuture();
+	UAndroidPermissionCallbackProxy* PermissionsGrantedCallbackProxy = UAndroidPermissionFunctionLibrary::AcquirePermissions(UngrantedPermissions);
+	if (!PermissionsGrantedCallbackProxy)
+	{
+		UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Unable to request permissions for reading/writing audio data on Android (PermissionsGrantedCallbackProxy is null)"));
+		return MakeFulfilledPromise<bool>(false).GetFuture();
+	}
+
+	FAndroidPermissionDelegate OnPermissionsGrantedDelegate;
+#if UE_VERSION_NEWER_THAN(5, 0, 0)
+	TSharedRef<FDelegateHandle> OnPermissionsGrantedDelegateHandle = MakeShared<FDelegateHandle>();
+	*OnPermissionsGrantedDelegateHandle = OnPermissionsGrantedDelegate.AddLambda
+#else
+	OnPermissionsGrantedDelegate.BindLambda
+#endif
+	([
+#if UE_VERSION_NEWER_THAN(5, 0, 0)
+	OnPermissionsGrantedDelegateHandle,
+#endif
+	OnPermissionsGrantedDelegate, bPermissionGrantedPromise, Permissions = MoveTemp(UngrantedPermissions)](const TArray<FString>& GrantPermissions, const TArray<bool>& GrantResults) mutable
+	{
+#if UE_VERSION_NEWER_THAN(5, 0, 0)
+		OnPermissionsGrantedDelegate.Remove(OnPermissionsGrantedDelegateHandle.Get());
+#else
+		OnPermissionsGrantedDelegate.Unbind();
+#endif
+		for (const FString& Permission : Permissions)
+		{
+			if (!GrantPermissions.Contains(Permission) || !GrantResults.IsValidIndex(GrantPermissions.Find(Permission)) || !GrantResults[GrantPermissions.Find(Permission)])
+			{
+				TArray<FString> GrantResultsString;
+				UE_LOG(LogRuntimeFilesDownloader, Error, TEXT("Unable to request permission '%s' for reading/writing audio data on Android"), *Permission);
+				bPermissionGrantedPromise->SetValue(false);
+				return;
+			}
+		}
+		UE_LOG(LogRuntimeFilesDownloader, Log, TEXT("Successfully granted permission for reading/writing audio data on Android"));
+		bPermissionGrantedPromise->SetValue(true);
+	});
+	PermissionsGrantedCallbackProxy->OnPermissionsGrantedDelegate = OnPermissionsGrantedDelegate;
+	return bPermissionGrantedFuture;
+#else
+	return MakeFulfilledPromise<bool>(true).GetFuture();
+#endif
 }

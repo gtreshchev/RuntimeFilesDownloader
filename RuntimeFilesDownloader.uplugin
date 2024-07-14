@@ -19,6 +19,16 @@
       "Name": "RuntimeFilesDownloader",
       "Type": "Runtime",
       "LoadingPhase": "Default"
+    },
+    {
+      "Name": "RuntimeFilesDownloaderEditor",
+      "Type": "Editor"
+    }
+  ],
+  "Plugins": [
+    {
+      "Name": "AndroidPermission",
+      "Enabled": true
     }
   ]
 }

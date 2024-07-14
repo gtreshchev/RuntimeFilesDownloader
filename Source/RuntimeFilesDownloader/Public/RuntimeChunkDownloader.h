@@ -136,6 +136,13 @@ public:
 	virtual void CancelDownload();
 
 protected:
+	/**
+	 * Check and request permissions required for downloading files
+	 *
+	 * @return A future that resolves to true if the permissions are granted, false otherwise
+	 */
+	static TFuture<bool> CheckAndRequestPermissions();
+	
 	/** A weak pointer to the HTTP request being used for the download */
 #if UE_VERSION_NEWER_THAN(4, 26, 0)
 	TWeakPtr<IHttpRequest, ESPMode::ThreadSafe> HttpRequestPtr;

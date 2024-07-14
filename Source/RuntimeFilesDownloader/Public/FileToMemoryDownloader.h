@@ -28,16 +28,16 @@ DECLARE_DELEGATE_ThreeParams(FOnFileToMemoryDownloadCompleteNative, const TArray
 DECLARE_DYNAMIC_DELEGATE_ThreeParams(FOnFileToMemoryDownloadComplete, const TArray<uint8>&, DownloadedContent, EDownloadToMemoryResult, Result, UFileToMemoryDownloader*, Downloader);
 
 /** Static delegate to track chunk download completion */
-DECLARE_DELEGATE_OneParam(FOnFileToMemoryChunkDownloadCompleteNative, const TArray64<uint8>&);
+DECLARE_DELEGATE_TwoParams(FOnFileToMemoryChunkDownloadCompleteNative, const TArray64<uint8>&, UFileToMemoryDownloader*);
 
 /** Dynamic delegate to track chunk download completion */
-DECLARE_DYNAMIC_DELEGATE_OneParam(FOnFileToMemoryChunkDownloadComplete, const TArray<uint8>&, DownloadedContent);
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnFileToMemoryChunkDownloadComplete, const TArray<uint8>&, DownloadedContent, UFileToMemoryDownloader*, Downloader);
 
 /** Static delegate to track download completion */
-DECLARE_DELEGATE_OneParam(FOnFileToMemoryAllChunksDownloadCompleteNative, EDownloadToMemoryResult);
+DECLARE_DELEGATE_TwoParams(FOnFileToMemoryAllChunksDownloadCompleteNative, EDownloadToMemoryResult, UFileToMemoryDownloader*);
 
 /** Dynamic delegate to track download completion */
-DECLARE_DYNAMIC_DELEGATE_OneParam(FOnFileToMemoryAllChunksDownloadComplete, EDownloadToMemoryResult, Result);
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnFileToMemoryAllChunksDownloadComplete, EDownloadToMemoryResult, Result, UFileToMemoryDownloader*, Downloader);
 
 /**
  * Downloads a file into temporary memory (RAM) and outputs a byte array

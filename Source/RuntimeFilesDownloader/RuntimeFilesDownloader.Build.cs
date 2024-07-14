@@ -17,5 +17,10 @@ public class RuntimeFilesDownloader : ModuleRules
 				"HTTP"
 			}
 		);
+		
+		if (Target.Platform == UnrealTargetPlatform.Android)
+		{
+			PrivateDependencyModuleNames.Add("AndroidPermission");
+		}
 	}
 }
