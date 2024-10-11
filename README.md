@@ -14,7 +14,7 @@
     Downloading files over HTTP / HTTPS at runtime.
     <br/>
     <br/>
-    <a href="https://github.com/gtreshchev/RuntimeFilesDownloader/wiki"><strong>Explore the docs »</strong></a>
+    <a href="https://docs.georgy.dev/runtime-files-downloader/overview"><strong>Explore the docs »</strong></a>
     <br/>
     <br/>
     <a href="https://unrealengine.com/marketplace/product/runtime-files-downloader">Marketplace</a>
