@@ -16,11 +16,8 @@
     <br/>
     <a href="https://docs.georgy.dev/runtime-files-downloader/overview"><strong>Explore the docs »</strong></a>
     <br/>
-    <br/>
-    <a href="https://unrealengine.com/marketplace/product/runtime-files-downloader">Marketplace</a>
+    <a href="https://www.fab.com/listings/771d5e74-3d7d-49b9-a682-7a6f7f86b94c">Fab</a>
     .
-    <a href="https://github.com/gtreshchev/RuntimeFilesDownloader/releases">Releases</a>
-    <br/>
     <a href="https://georgy.dev/discord">Discord support chat</a>
   </p>
 
